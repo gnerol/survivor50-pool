@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
+import confetti from 'canvas-confetti';
 
 export default function App() {
       const [contestants, setContestants] = useState([]);
@@ -60,6 +61,16 @@ export default function App() {
             }, 1000);
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
+
+      // BIRTHDAY CONFETTI TRIGGER
+      useEffect(() => {
+            confetti({
+                  particleCount: 300, // Lots of confetti!
+                  spread: 160,        // How wide it blows out
+                  origin: { y: 0.3 }, // Starts a bit higher on the screen
+                  zIndex: 10000       // Ensures it stays on top of everything
+            });
+      }, []);
 
       useEffect(() => {
             fetchData();
@@ -193,26 +204,31 @@ export default function App() {
                   </div>
 
                   <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 15px' }}>
-                        {/* ANNOUNCEMENT BANNER */}
+                        {/* BIRTHDAY ANNOUNCEMENT BANNER */}
                         <div style={{
                               margin: '10px 15px 25px 15px',
-                              padding: '12px 20px',
-                              background: 'rgba(59, 130, 246, 0.1)', // Subtle blue tint
-                              border: '1px solid #1e293b',
+                              padding: '15px 20px',
+                              background: 'rgba(249, 115, 22, 0.15)', // Changed to a warm, celebratory orange tint
+                              border: '1px solid #f97316',
                               borderRadius: '16px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '12px'
+                              textAlign: 'center', // Centers the text
+                              boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)' // Adds a nice celebratory glow
                         }}>
-                              <span style={{ fontSize: '1.2rem' }}>📢</span>
+                              <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>
+                                    🕯️🎂🎈
+                              </div>
                               <p style={{
                                     margin: 0,
-                                    fontSize: '0.9rem',
-                                    color: '#94a3b8',
-                                    lineHeight: '1.4',
-                                    fontWeight: '500'
+                                    fontSize: '1rem',
+                                    color: '#f8fafc',
+                                    lineHeight: '1.5',
+                                    fontWeight: '600',
+                                    letterSpacing: '0.5px'
                               }}>
-                                    <strong style={{ color: '#f8fafc' }}>Welcome to the Premiere!</strong> Cast your votes before the timer hits zero to earn points for the season.
+                                    Welcome to our Survivor50! The first vote is live March 4th.<br />
+                                    <span style={{ color: '#f97316', fontWeight: '900', fontSize: '1.2rem', display: 'block', marginTop: '5px' }}>
+                                          🎉 HAPPY BIRTHDAY RAYA! 🎉
+                                    </span>
                               </p>
                         </div>
 
