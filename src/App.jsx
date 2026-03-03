@@ -62,14 +62,27 @@ export default function App() {
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
 
-      // BIRTHDAY CONFETTI TRIGGER
+      // BIRTHDAY CONFETTI TRIGGER (UPDATED TO CONTINUOUS)
       useEffect(() => {
-            confetti({
-                  particleCount: 300, // Lots of confetti!
-                  spread: 160,        // How wide it blows out
-                  origin: { y: 0.3 }, // Starts a bit higher on the screen
-                  zIndex: 10000       // Ensures it stays on top of everything
-            });
+            const duration = 3 * 1000;
+            const end = Date.now() + duration;
+
+            const fireConfetti = () => {
+                  confetti({
+                        particleCount: 150,
+                        spread: 160,
+                        origin: { y: 0.3 },
+                        zIndex: 10000
+                  });
+            };
+
+            // Initial fire
+            fireConfetti();
+            
+            // Repeat every 3 seconds
+            const interval = setInterval(fireConfetti, 3000);
+            
+            return () => clearInterval(interval);
       }, []);
 
       useEffect(() => {
