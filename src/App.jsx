@@ -235,20 +235,34 @@ export default function App() {
                         {/* LEADERBOARD */}
                         <div style={{ background: '#0f172a', padding: '20px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '30px' }}>
                               <div style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', marginBottom: '15px', letterSpacing: '3px', fontWeight: 'bold' }}>CURRENT STANDINGS</div>
-                              <div className="custom-scrollbar" style={{ maxHeight: '115px', overflowY: 'auto', paddingRight: '10px' }}>
+                              <div className="custom-scrollbar" style={{ maxHeight: '106px', overflowY: 'auto', paddingRight: '10px' }}>
                                     {scores.length > 0 ? (
-                                          scores.map((s, i) => (
-                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', padding: '12px 0', borderBottom: '1px solid #1e293b' }}>
-                                                      <span style={{ fontWeight: '600', color: '#f8fafc' }}>
-                                                            {i === 0 && <span style={{ marginRight: '8px' }}>👑</span>}
-                                                            {s.username}
-                                                      </span>
-                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                            <span style={{ color: s.points >= 0 ? '#22c55e' : '#ef4444', fontWeight: '900', fontSize: '1.2rem' }}>{s.points}</span>
-                                                            <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 'bold' }}>PTS</span>
+                                          (() => {
+                                                // 1. Calculate if there's a tie for first place
+                                                const topScore = scores[0].points;
+                                                const isTieForFirst = scores.filter(s => s.points === topScore).length > 1;
+
+                                                return scores.map((s, i) => (
+                                                      <div key={i} style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            fontSize: '1.1rem',
+                                                            height: '52px', // Fixed height per row for scrolling precision
+                                                            borderBottom: '1px solid #1e293b'
+                                                      }}>
+                                                            <span style={{ fontWeight: '600', color: '#f8fafc' }}>
+                                                                  {/* 2. Only show crown if no tie and is index 0 */}
+                                                                  {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
+                                                                  {s.username}
+                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                  <span style={{ color: s.points >= 0 ? '#22c55e' : '#ef4444', fontWeight: '900', fontSize: '1.2rem' }}>{s.points}</span>
+                                                                  <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 'bold' }}>PTS</span>
+                                                            </div>
                                                       </div>
-                                                </div>
-                                          ))
+                                                ));
+                                          })()
                                     ) : (
                                           <div style={{ textAlign: 'center', fontSize: '0.9rem', color: '#475569', padding: '20px 0' }}>No active players.</div>
                                     )
