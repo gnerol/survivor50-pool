@@ -208,25 +208,32 @@ export default function App() {
                         <div style={{
                               margin: '10px 15px 25px 15px',
                               padding: '15px 20px',
-                              background: 'rgba(249, 115, 22, 0.15)', // Changed to a warm, celebratory orange tint
+                              background: 'rgba(249, 115, 22, 0.15)',
                               border: '1px solid #f97316',
                               borderRadius: '16px',
-                              textAlign: 'center', // Centers the text
-                              boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)' // Adds a nice celebratory glow
+                              textAlign: 'center',
+                              boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)'
                         }}>
                               <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>
                                     🕯️🎂🎈
                               </div>
                               <p style={{
                                     margin: 0,
-                                    fontSize: '1rem',
+                                    fontSize: '0.9rem', // Slightly smaller base font for mobile
                                     color: '#f8fafc',
                                     lineHeight: '1.5',
                                     fontWeight: '600',
                                     letterSpacing: '0.5px'
                               }}>
                                     Welcome to our Survivor50! The first vote is live March 4th.<br />
-                                    <span style={{ color: '#f97316', fontWeight: '900', fontSize: '1.2rem', display: 'block', marginTop: '5px' }}>
+                                    <span style={{
+                                          color: '#f97316',
+                                          fontWeight: '900',
+                                          fontSize: 'clamp(1rem, 4.5vw, 1.2rem)', // Scalable font
+                                          marginTop: '5px',
+                                          whiteSpace: 'nowrap', // Prevents wrapping
+                                          display: 'inline-block' // Allows margin/padding without breaking line
+                                    }}>
                                           🎉 HAPPY BIRTHDAY RAYA! 🎉
                                     </span>
                               </p>
