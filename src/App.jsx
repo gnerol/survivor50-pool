@@ -13,9 +13,8 @@ export default function App() {
       const [eliminatedPlayer, setEliminatedPlayer] = useState(null);
       const [showRules, setShowRules] = useState(false);
       
-      // STATE FOR BLINDSIDE NOTIFICATIONS
-      const [blindsideWinner, setBlindsideWinner] = useState(false); // Private full-screen celebration
-      const [publicBlindsideWinners, setPublicBlindsideWinners] = useState(null); // Public banner for everyone else
+      const [blindsideWinner, setBlindsideWinner] = useState(false); 
+      const [publicBlindsideWinners, setPublicBlindsideWinners] = useState(null); 
 
       const [timerEndAt, setTimerEndAt] = useState(null);
       const [secondsLeft, setSecondsLeft] = useState(0);
@@ -65,10 +64,8 @@ export default function App() {
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
 
+      // Regular birthday confetti
       useEffect(() => {
-            const duration = 3 * 1000;
-            const end = Date.now() + duration;
-
             const fireConfetti = () => {
                   confetti({
                         particleCount: 150,
@@ -77,7 +74,6 @@ export default function App() {
                         zIndex: 10000
                   });
             };
-
             fireConfetti();
             const interval = setInterval(fireConfetti, 3000);
             return () => clearInterval(interval);
@@ -98,34 +94,63 @@ export default function App() {
                         if (payload.new.is_eliminated && !payload.old.is_eliminated) {
                               setEliminatedPlayer(payload.new.name);
                               
-                              // Check for blindsides for everyone observing the screen!
                               const { data: g } = await supabase.from('game_settings').select('current_week').single();
                               const week = g?.current_week || 2;
 
-                              // Fetch all votes to figure out the math
                               const { data: weekVotes } = await supabase.from('votes').select('*').eq('week_number', week);
                               
                               if (weekVotes && weekVotes.length > 0) {
                                     const totalVotes = weekVotes.length;
                                     const correctVotes = weekVotes.filter(v => v.contestant_id === payload.new.id);
                                     
-                                    // If at least 1 person guessed it, AND it's 20% or less of the total votes
                                     if (correctVotes.length > 0 && (correctVotes.length / totalVotes) <= 0.20) {
                                           const winnerNames = correctVotes.map(v => v.username);
                                           const email = localStorage.getItem('survivor_email');
                                           const isThisUserAWinner = correctVotes.some(v => v.email === email);
 
-                                          // Wait for the "Tribe Has Spoken" 5-second screen to finish...
+                                          // Wait for the "Tribe Has Spoken" 5-second screen to finish
                                           setTimeout(() => {
                                                 if (isThisUserAWinner) {
-                                                      // The Private Full-Screen Celebration
                                                       setBlindsideWinner(true);
-                                                      confetti({ particleCount: 300, spread: 200, origin: { y: 0.5 }, zIndex: 10001 });
-                                                      setTimeout(() => setBlindsideWinner(false), 7000);
+                                                      
+                                                      // 1. PLAY FIREWORKS AUDIO
+                                                      // The .catch() prevents the browser from throwing an error if autoplay is blocked
+                                                      const audio = new Audio('/fireworks.mp3');
+                                                      audio.play().catch(e => console.log('Audio blocked by browser:', e));
+                                                      
+                                                      // 2. LAUNCH FIREWORKS ANIMATION
+                                                      const duration = 12 * 1000;
+                                                      const animationEnd = Date.now() + duration;
+                                                      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10001 };
+
+                                                      const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+                                                      const interval = setInterval(function() {
+                                                            const timeLeft = animationEnd - Date.now();
+
+                                                            if (timeLeft <= 0) {
+                                                                  return clearInterval(interval);
+                                                            }
+
+                                                            const particleCount = 50 * (timeLeft / duration);
+                                                            
+                                                            // Left side burst
+                                                            confetti(Object.assign({}, defaults, { 
+                                                                  particleCount, 
+                                                                  origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
+                                                            }));
+                                                            // Right side burst
+                                                            confetti(Object.assign({}, defaults, { 
+                                                                  particleCount, 
+                                                                  origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
+                                                            }));
+                                                      }, 250);
+                                                      
+                                                      // Hide after 12 full seconds
+                                                      setTimeout(() => setBlindsideWinner(false), 12000);
                                                 } else {
-                                                      // The Public Announcement Banner for everyone else
                                                       setPublicBlindsideWinners(winnerNames);
-                                                      setTimeout(() => setPublicBlindsideWinners(null), 7000);
+                                                      setTimeout(() => setPublicBlindsideWinners(null), 12000);
                                                 }
                                           }, 5000); 
                                     }
@@ -158,19 +183,15 @@ export default function App() {
       const handleEliminate = async (id) => {
             if (!window.confirm("Snuff torch? This will calculate scores, blindsides, and streaks!")) return;
             
-            // 1. Eliminate the player
             await supabase.from('contestants').update({ is_eliminated: true, is_at_risk: false, is_immune: false }).eq('id', id);
             
-            // 2. Fetch all votes for this current week
             const { data: weekVotes } = await supabase.from('votes').select('*').eq('week_number', currentWeek);
             
             if (weekVotes && weekVotes.length > 0) {
-                  // 3. Calculate Blindside Math
                   const totalVotes = weekVotes.length;
                   const eliminatedVotes = weekVotes.filter(v => v.contestant_id === id).length;
                   const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.20; 
 
-                  // 4. Process each player's vote progressively
                   for (const v of weekVotes) {
                         const isCorrect = v.contestant_id === id;
                         
@@ -193,7 +214,6 @@ export default function App() {
                               pointsEarned = -2; 
                         }
 
-                        // 5. Save the progressive points and new streak back to the database
                         await supabase.from('profiles').upsert({ 
                               email: v.email, 
                               username: v.username, 
