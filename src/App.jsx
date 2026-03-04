@@ -148,10 +148,16 @@ export default function App() {
                                     const totalVotes = weekVotes.length;
                                     const correctVotes = weekVotes.filter(v => v.contestant_id === payload.new.id);
                                     
-                                    if (correctVotes.length > 0 && (correctVotes.length / totalVotes) <= 0.20) {
+                                    // BUMPED TO 25% (0.25)
+                                    if (correctVotes.length > 0 && (correctVotes.length / totalVotes) <= 0.25) {
                                           const winnerNames = correctVotes.map(v => v.username);
                                           const email = localStorage.getItem('survivor_email');
-                                          const isThisUserAWinner = correctVotes.some(v => v.email === email);
+                                          
+                                          // Check if THIS specific tab is the admin tab
+                                          const isCurrentlyAdmin = sessionStorage.getItem('is_survivor_admin') === 'true';
+                                          
+                                          // Only show private fireworks if they won AND are not currently the admin
+                                          const isThisUserAWinner = !isCurrentlyAdmin && correctVotes.some(v => v.email === email);
 
                                           // Wait for the "Tribe Has Spoken" 5-second screen to finish
                                           setTimeout(() => {
@@ -202,7 +208,9 @@ export default function App() {
             if (weekVotes && weekVotes.length > 0) {
                   const totalVotes = weekVotes.length;
                   const eliminatedVotes = weekVotes.filter(v => v.contestant_id === id).length;
-                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.20; 
+                  
+                  // BUMPED TO 25% (0.25)
+                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.25; 
 
                   for (const v of weekVotes) {
                         const isCorrect = v.contestant_id === id;
