@@ -625,9 +625,8 @@ export default function App() {
                         <div style={{ position: 'fixed', bottom: '0', left: '0', right: '0', padding: '25px', background: 'linear-gradient(to top, #020617 70%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
                               <button
                                     className="squish-button"
+                                    onPointerDown={triggerHaptic} // <--- instant vibration on touch!
                                     onClick={async () => {
-                                          triggerHaptic(); 
-                                          
                                           let email = localStorage.getItem('survivor_email');
                                           let username = localStorage.getItem('survivor_username');
 
@@ -666,7 +665,7 @@ export default function App() {
                                           await supabase.from('votes').upsert({ email, username, contestant_id: selectedCandidate.id, week_number: currentWeek }, { onConflict: 'email, week_number' });
                                           fetchData();
                                     }}
-                                    style={{ width: '100%', maxWidth: '400px', padding: '20px', background: '#f97316', color: 'white', borderRadius: '50px', fontWeight: '900', border: 'none', cursor: 'pointer' }}
+                                    style={{ width: '100%', maxWidth: '400px', padding: '20px', background: '#f97316', color: 'white', borderRadius: '50px', fontWeight: '900', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}
                               >
                                     VOTE FOR {selectedCandidate.name.toUpperCase()}
                               </button>
