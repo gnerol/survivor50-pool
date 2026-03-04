@@ -21,10 +21,36 @@ export default function App() {
       const [showTimeAdded, setShowTimeAdded] = useState(false);
       const timerRef = useRef(null);
 
-      // --- NEW HAPTIC FEEDBACK FUNCTION ---
+      // --- NEW HAPTIC & AUDIO FEEDBACK FUNCTION ---
       const triggerHaptic = () => {
+            // 1. Android Vibration
             if (typeof navigator !== 'undefined' && navigator.vibrate) {
                   navigator.vibrate(50); 
+            }
+
+            // 2. Universal UI Audio "Tick" (Perfect for iPhone!)
+            try {
+                  const AudioContext = window.AudioContext || window.webkitAudioContext;
+                  if (AudioContext) {
+                        const ctx = new AudioContext();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(600, ctx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+                        
+                        gain.gain.setValueAtTime(0.15, ctx.currentTime); // Gentle volume
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+                        
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.05);
+                  }
+            } catch (e) {
+                  console.log('Audio tick blocked by browser', e);
             }
       };
 
@@ -309,8 +335,8 @@ export default function App() {
 
                   {/* RULES / HOW TO PLAY OVERLAY */}
                   {showRules && (
-                        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.95)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'fadeIn 0.3s ease' }}>
-                              <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '24px', padding: '30px', maxWidth: '500px', width: '100%', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, height: '100dvh', backgroundColor: 'rgba(2, 6, 23, 0.95)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'fadeIn 0.3s ease' }}>
+                              <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '24px', padding: '30px', maxWidth: '500px', width: '100%', maxHeight: '85dvh', overflowY: 'auto', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
                                     <button onClick={() => { triggerHaptic(); setShowRules(false); }} className="squish-button" style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
 
                                     <h2 style={{ color: '#f97316', marginTop: 0, marginBottom: '20px', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '1px' }}>📜 HOW TO PLAY</h2>
@@ -625,8 +651,9 @@ export default function App() {
                         <div style={{ position: 'fixed', bottom: '0', left: '0', right: '0', padding: '25px', background: 'linear-gradient(to top, #020617 70%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
                               <button
                                     className="squish-button"
-                                    onPointerDown={triggerHaptic} // <--- instant vibration on touch!
                                     onClick={async () => {
+                                          triggerHaptic(); // Audio + Android Buzz fires right here
+                                          
                                           let email = localStorage.getItem('survivor_email');
                                           let username = localStorage.getItem('survivor_username');
 
