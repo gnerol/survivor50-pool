@@ -348,6 +348,7 @@ export default function App() {
                                           <li><strong>Scoring 🎯:</strong> Earn <span style={{ color: '#22c55e', fontWeight: 'bold' }}>+10</span> points for a correct guess, but lose <span style={{ color: '#ef4444', fontWeight: 'bold' }}>-2</span> points for a wrong guess.</li>
                                           <li><strong>Blindsides 😱:</strong> If 25% or fewer of the players guess correctly, those who did earn a massive +25 points!</li>
                                           <li><strong>Hot Streaks 🔥:</strong> Guess correctly two weeks in a row to start a streak and earn bonus points!</li>
+                                          <li><strong>Incognito Mode 🕵️‍♂️:</strong> Don't use the site in incognito or private browsing mode, it may erase your points and streaks!</li>
                                     </ul>
 
                                     <button onClick={() => { triggerHaptic(); setShowRules(false); }} className="squish-button" style={{ width: '100%', background: '#3b82f6', color: 'white', border: 'none', padding: '15px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 'bold', marginTop: '30px', cursor: 'pointer' }}>
