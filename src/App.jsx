@@ -79,6 +79,51 @@ export default function App() {
             return () => clearInterval(interval);
       }, []);
 
+      // Epic Blindside Fireworks & Audio Effect
+      useEffect(() => {
+            let fireworksInterval;
+
+            if (blindsideWinner) {
+                  // 1. PLAY FIREWORKS AUDIO
+                  const audio = new Audio('/fireworks.mp3');
+                  audio.play().catch(e => console.log('Audio blocked by browser:', e));
+                  
+                  // 2. LAUNCH FIREWORKS ANIMATION
+                  const duration = 12 * 1000;
+                  const animationEnd = Date.now() + duration;
+                  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10001 };
+
+                  const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+                  fireworksInterval = setInterval(function() {
+                        const timeLeft = animationEnd - Date.now();
+
+                        if (timeLeft <= 0) {
+                              return clearInterval(fireworksInterval);
+                        }
+
+                        const particleCount = 50 * (timeLeft / duration);
+                        
+                        // Left side burst
+                        confetti(Object.assign({}, defaults, { 
+                              particleCount, 
+                              origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
+                        }));
+                        // Right side burst
+                        confetti(Object.assign({}, defaults, { 
+                              particleCount, 
+                              origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
+                        }));
+                  }, 250);
+            }
+
+            return () => {
+                  if (fireworksInterval) {
+                        clearInterval(fireworksInterval);
+                  }
+            };
+      }, [blindsideWinner]);
+
       useEffect(() => {
             fetchData();
             const sub = supabase.channel('master-room')
@@ -112,39 +157,6 @@ export default function App() {
                                           setTimeout(() => {
                                                 if (isThisUserAWinner) {
                                                       setBlindsideWinner(true);
-                                                      
-                                                      // 1. PLAY FIREWORKS AUDIO
-                                                      // The .catch() prevents the browser from throwing an error if autoplay is blocked
-                                                      const audio = new Audio('/fireworks.mp3');
-                                                      audio.play().catch(e => console.log('Audio blocked by browser:', e));
-                                                      
-                                                      // 2. LAUNCH FIREWORKS ANIMATION
-                                                      const duration = 12 * 1000;
-                                                      const animationEnd = Date.now() + duration;
-                                                      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10001 };
-
-                                                      const randomInRange = (min, max) => Math.random() * (max - min) + min;
-
-                                                      const interval = setInterval(function() {
-                                                            const timeLeft = animationEnd - Date.now();
-
-                                                            if (timeLeft <= 0) {
-                                                                  return clearInterval(interval);
-                                                            }
-
-                                                            const particleCount = 50 * (timeLeft / duration);
-                                                            
-                                                            // Left side burst
-                                                            confetti(Object.assign({}, defaults, { 
-                                                                  particleCount, 
-                                                                  origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
-                                                            }));
-                                                            // Right side burst
-                                                            confetti(Object.assign({}, defaults, { 
-                                                                  particleCount, 
-                                                                  origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
-                                                            }));
-                                                      }, 250);
                                                       
                                                       // Hide after 12 full seconds
                                                       setTimeout(() => setBlindsideWinner(false), 12000);
