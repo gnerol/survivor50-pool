@@ -39,9 +39,8 @@ export default function App() {
                   const { data: v } = await supabase.from('votes').select('*').eq('email', savedEmail).eq('week_number', activeWeek).maybeSingle();
                   setHasVoted(!!v);
                   if (v && c) setSelectedCandidate(c.find(p => p.id === v.contestant_id));
-                  else setSelectedCandidate(null); // Ensure candidate is cleared if no vote found
+                  else setSelectedCandidate(null);
             } else {
-                  // FIX: Ensure UI resets if local memory is empty (like after a hard reset)
                   setHasVoted(false);
                   setSelectedCandidate(null);
             }
@@ -62,7 +61,6 @@ export default function App() {
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
 
-      // BIRTHDAY CONFETTI TRIGGER (UPDATED TO CONTINUOUS)
       useEffect(() => {
             const duration = 3 * 1000;
             const end = Date.now() + duration;
@@ -76,12 +74,8 @@ export default function App() {
                   });
             };
 
-            // Initial fire
             fireConfetti();
-            
-            // Repeat every 3 seconds
             const interval = setInterval(fireConfetti, 3000);
-            
             return () => clearInterval(interval);
       }, []);
 
@@ -123,15 +117,53 @@ export default function App() {
             }
       };
 
+      // UPDATED ELIMINATION LOGIC FOR BLINDSIDES AND STREAKS
       const handleEliminate = async (id) => {
-            if (!window.confirm("Snuff torch?")) return;
+            if (!window.confirm("Snuff torch? This will calculate scores, blindsides, and streaks!")) return;
+            
+            // 1. Eliminate the player
             await supabase.from('contestants').update({ is_eliminated: true, is_at_risk: false, is_immune: false }).eq('id', id);
+            
+            // 2. Fetch all votes for this current week
             const { data: weekVotes } = await supabase.from('votes').select('*').eq('week_number', currentWeek);
-            if (weekVotes) {
+            
+            if (weekVotes && weekVotes.length > 0) {
+                  // 3. Calculate Blindside Math
+                  const totalVotes = weekVotes.length;
+                  const eliminatedVotes = weekVotes.filter(v => v.contestant_id === id).length;
+                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.20; // 20% or less guessed correctly
+
+                  // 4. Process each player's vote progressively
                   for (const v of weekVotes) {
-                        const pts = (v.contestant_id === id) ? 10 : -2;
-                        const { data: p } = await supabase.from('profiles').select('points').eq('email', v.email).maybeSingle();
-                        await supabase.from('profiles').upsert({ email: v.email, username: v.username, points: (p?.points || 0) + pts }, { onConflict: 'email' });
+                        const isCorrect = v.contestant_id === id;
+                        
+                        // Fetch their current profile to get progressive points and streak
+                        const { data: p } = await supabase.from('profiles').select('points, streak').eq('email', v.email).maybeSingle();
+                        
+                        let currentPoints = p?.points || 0;
+                        let currentStreak = p?.streak || 0;
+                        
+                        let pointsEarned = 0;
+                        let newStreak = 0;
+
+                        if (isCorrect) {
+                              newStreak = currentStreak + 1; // Increase streak progressively
+                              pointsEarned = 10; // Base points
+                              
+                              if (isBlindside) pointsEarned += 15; // Blindside Bonus (+25 total base)
+                              if (newStreak >= 2) pointsEarned += 2; // Hot Streak Bonus
+                        } else {
+                              newStreak = 0; // Reset streak progressively
+                              pointsEarned = -2; // Wrong guess penalty
+                        }
+
+                        // 5. Save the progressive points and new streak back to the database
+                        await supabase.from('profiles').upsert({ 
+                              email: v.email, 
+                              username: v.username, 
+                              points: currentPoints + pointsEarned,
+                              streak: newStreak
+                        }, { onConflict: 'email' });
                   }
             }
             fetchData();
@@ -180,7 +212,8 @@ export default function App() {
                                           <li><strong>One Vote Per Week:</strong> You get exactly one vote per episode to guess who gets their torch snuffed.</li>
                                           <li><strong>Beat the Clock ⏳:</strong> Once the countdown hits zero, voting is locked. No exceptions!</li>
                                           <li><strong>Scoring 🎯:</strong> Earn <span style={{ color: '#22c55e', fontWeight: 'bold' }}>+10</span> points for a correct guess, but lose <span style={{ color: '#ef4444', fontWeight: 'bold' }}>-2</span> points for a wrong guess.</li>
-                                          <li><strong>Browser Warning 🛑:</strong> Do not play in Incognito or Private mode, or your browser won't remember you next week.</li>
+                                          <li><strong>Blindsides 😱:</strong> If 20% or fewer of the players guess correctly, those who did earn a massive +25 points!</li>
+                                          <li><strong>Hot Streaks 🔥:</strong> Guess correctly two weeks in a row to start a streak and earn bonus points!</li>
                                     </ul>
 
                                     <button onClick={() => setShowRules(false)} style={{ width: '100%', background: '#3b82f6', color: 'white', border: 'none', padding: '15px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 'bold', marginTop: '30px', cursor: 'pointer', transition: '0.2s' }}>
@@ -270,9 +303,15 @@ export default function App() {
                                                             height: '52px',
                                                             borderBottom: '1px solid #1e293b'
                                                       }}>
-                                                            <span style={{ fontWeight: '600', color: '#f8fafc' }}>
+                                                            <span style={{ fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center' }}>
                                                                   {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
                                                                   {s.username}
+                                                                  {/* UPDATED: HOT STREAK DISPLAY */}
+                                                                  {s.streak >= 2 && (
+                                                                        <span style={{ marginLeft: '8px', fontSize: '0.8rem', color: '#f97316', background: 'rgba(249, 115, 22, 0.1)', padding: '2px 6px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '3px' }} title={`Hot Streak: ${s.streak} in a row!`}>
+                                                                              🔥{s.streak}
+                                                                        </span>
+                                                                  )}
                                                             </span>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                   <span style={{ color: s.points >= 0 ? '#22c55e' : '#ef4444', fontWeight: '900', fontSize: '1.2rem' }}>{s.points}</span>
@@ -296,7 +335,7 @@ export default function App() {
                                     </div>
                                     <button
                                           onClick={async () => {
-                                                if (!window.confirm("RESET ENTIRE GAME? This deletes all votes and points!")) return;
+                                                if (!window.confirm("RESET ENTIRE GAME? This deletes all votes, points, and streaks!")) return;
                                                 try {
                                                       const { error } = await supabase.rpc('season_hard_reset');
                                                       if (error) throw error;
@@ -304,7 +343,6 @@ export default function App() {
                                                       localStorage.removeItem('survivor_email');
                                                       localStorage.removeItem('survivor_username');
 
-                                                      // FIX: Force reload to clear all React state and memory instantly
                                                       window.location.reload();
                                                 } catch (err) { alert(err.message); }
                                           }}
@@ -353,7 +391,6 @@ export default function App() {
                                                             <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 10, padding: '0 5px' }}>
                                                                   <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0 }}>✕</button>
                                                                   <div style={{ display: 'flex', gap: '5px' }}>
-                                                                        {/* HIDDEN IMMUNITY IDOL TOGGLE */}
                                                                         <button 
                                                                               onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }} 
                                                                               style={{ background: c.is_immune ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -361,7 +398,6 @@ export default function App() {
                                                                         >
                                                                               🗿
                                                                         </button>
-                                                                        {/* RETURN TO CAMP SAFE TOGGLE */}
                                                                         <button onClick={async () => { await supabase.from('contestants').update({ is_at_risk: false }).eq('id', c.id); fetchData(); }} style={{ background: '#eab308', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛡️</button>
                                                                   </div>
                                                             </div>
