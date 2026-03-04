@@ -21,51 +21,35 @@ export default function App() {
       const [showTimeAdded, setShowTimeAdded] = useState(false);
       const timerRef = useRef(null);
 
-      // --- NEW: Audio References ---
-      // We store the audio objects in refs so we don't recreate them every render, 
-      // which is crucial for iOS to remember that they've been "unlocked".
+      // --- NEW: Audio References connected to the DOM ---
       const fireworksAudioRef = useRef(null);
       const eliminationAudioRef = useRef(null);
 
-      // --- NEW: Audio Unlocker (The iOS Fix) ---
-      // --- NEW: Audio Unlocker (The iOS Fix) ---
+      // --- UPDATED: Audio Unlocker (The iOS/Android Fix) ---
       useEffect(() => {
-            // 1. Initialize and force preload for mobile
-            const fireworks = new Audio('/fireworks.mp3');
-            fireworks.preload = 'auto';
-            
-            const snuff = new Audio('/snuff.mp3'); // Your sound effect
-            snuff.preload = 'auto';
-
-            // Assign to our refs
-            fireworksAudioRef.current = fireworks;
-            eliminationAudioRef.current = snuff;
-
-            // 2. This function runs on the user's first click anywhere on the page
             const unlockAudio = () => {
-                  [fireworksAudioRef.current, eliminationAudioRef.current].forEach(audio => {
-                        if (audio) {
-                              // Force the browser to fetch the media data
-                              audio.load();
+                  const fw = fireworksAudioRef.current;
+                  const sn = eliminationAudioRef.current;
 
-                              // Mute it safely to hide the "unlock" blip from the user
-                              audio.muted = true; 
-                              
-                              const playPromise = audio.play();
-                              if (playPromise !== undefined) {
-                                    playPromise.then(() => {
-                                          audio.pause();
-                                          audio.currentTime = 0;
-                                          // Unmute it so it's ready for the real event
-                                          audio.muted = false; 
-                                    }).catch(e => {
-                                          console.log('Audio unlock blocked/failed', e);
-                                          // Ensure it is unmuted even if the unlock fails
-                                          audio.muted = false; 
-                                    });
-                              }
+                  // We tell the browser to play, and instantly pause.
+                  // By doing this without the 'muted' property, we establish a valid user interaction.
+                  if (fw && sn) {
+                        const playFw = fw.play();
+                        if (playFw !== undefined) {
+                              playFw.then(() => {
+                                    fw.pause();
+                                    fw.currentTime = 0;
+                              }).catch(e => console.log('FW Unlock blocked:', e));
                         }
-                  });
+
+                        const playSn = sn.play();
+                        if (playSn !== undefined) {
+                              playSn.then(() => {
+                                    sn.pause();
+                                    sn.currentTime = 0;
+                              }).catch(e => console.log('Snuff Unlock blocked:', e));
+                        }
+                  }
                   
                   // Once unlocked, we remove the event listeners so this only runs once
                   document.removeEventListener('click', unlockAudio);
@@ -169,22 +153,21 @@ export default function App() {
             return () => clearInterval(interval);
       }, []);
 
-      // --- NEW: Elimination Splash Screen Audio ---
+      // Elimination Splash Screen Audio 
       useEffect(() => {
             if (eliminatedPlayer && eliminationAudioRef.current) {
-                  eliminationAudioRef.current.currentTime = 0; // Rewind to start
+                  eliminationAudioRef.current.currentTime = 0; 
                   eliminationAudioRef.current.play().catch(e => console.log('Elimination audio blocked:', e));
             }
       }, [eliminatedPlayer]);
 
-      // --- UPDATED: Epic Blindside Fireworks & Audio Effect ---
+      // Epic Blindside Fireworks & Audio Effect 
       useEffect(() => {
             let fireworksInterval;
 
             if (blindsideWinner) {
-                  // We now use the unlocked global ref instead of creating a new Audio instance
                   if (fireworksAudioRef.current) {
-                        fireworksAudioRef.current.currentTime = 0; // Rewind to start
+                        fireworksAudioRef.current.currentTime = 0; 
                         fireworksAudioRef.current.play().catch(e => console.log('Fireworks audio blocked:', e));
                   }
                   
@@ -349,6 +332,10 @@ export default function App() {
       return (
             <div style={{ backgroundColor: '#020617', color: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', overflowX: 'hidden', paddingBottom: '180px' }}>
                   
+                  {/* --- NEW: Hidden DOM Audio Elements for Mobile --- */}
+                  <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" style={{ display: 'none' }} />
+                  <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" style={{ display: 'none' }} />
+
                   {/* CSS SQUISH ANIMATION */}
                   <style>{`
                         .squish-button {
