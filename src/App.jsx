@@ -28,21 +28,42 @@ export default function App() {
       const eliminationAudioRef = useRef(null);
 
       // --- NEW: Audio Unlocker (The iOS Fix) ---
+      // --- NEW: Audio Unlocker (The iOS Fix) ---
       useEffect(() => {
-            // Initialize the audio objects
-            fireworksAudioRef.current = new Audio('/fireworks.mp3');
-            eliminationAudioRef.current = new Audio('/snuff.mp3'); // <-- CHANGE TO YOUR SOUND EFFECT NAME
+            // 1. Initialize and force preload for mobile
+            const fireworks = new Audio('/fireworks.mp3');
+            fireworks.preload = 'auto';
+            
+            const snuff = new Audio('/snuff.mp3'); // Your sound effect
+            snuff.preload = 'auto';
 
-            // This function runs on the user's first click anywhere on the page
+            // Assign to our refs
+            fireworksAudioRef.current = fireworks;
+            eliminationAudioRef.current = snuff;
+
+            // 2. This function runs on the user's first click anywhere on the page
             const unlockAudio = () => {
                   [fireworksAudioRef.current, eliminationAudioRef.current].forEach(audio => {
                         if (audio) {
-                              audio.volume = 0; // Mute it so the user doesn't hear the unlocking process
-                              audio.play().then(() => {
-                                    audio.pause();
-                                    audio.currentTime = 0;
-                                    audio.volume = 1; // Turn volume back up for when we actually want to play it
-                              }).catch(e => console.log('Audio unlock blocked/failed', e));
+                              // Force the browser to fetch the media data
+                              audio.load();
+
+                              // Mute it safely to hide the "unlock" blip from the user
+                              audio.muted = true; 
+                              
+                              const playPromise = audio.play();
+                              if (playPromise !== undefined) {
+                                    playPromise.then(() => {
+                                          audio.pause();
+                                          audio.currentTime = 0;
+                                          // Unmute it so it's ready for the real event
+                                          audio.muted = false; 
+                                    }).catch(e => {
+                                          console.log('Audio unlock blocked/failed', e);
+                                          // Ensure it is unmuted even if the unlock fails
+                                          audio.muted = false; 
+                                    });
+                              }
                         }
                   });
                   
