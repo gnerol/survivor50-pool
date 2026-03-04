@@ -21,14 +21,51 @@ export default function App() {
       const [showTimeAdded, setShowTimeAdded] = useState(false);
       const timerRef = useRef(null);
 
-      // --- NEW HAPTIC & AUDIO FEEDBACK FUNCTION ---
+      // --- NEW: Audio References ---
+      // We store the audio objects in refs so we don't recreate them every render, 
+      // which is crucial for iOS to remember that they've been "unlocked".
+      const fireworksAudioRef = useRef(null);
+      const eliminationAudioRef = useRef(null);
+
+      // --- NEW: Audio Unlocker (The iOS Fix) ---
+      useEffect(() => {
+            // Initialize the audio objects
+            fireworksAudioRef.current = new Audio('/fireworks.mp3');
+            eliminationAudioRef.current = new Audio('/snuff.mp3'); // <-- CHANGE TO YOUR SOUND EFFECT NAME
+
+            // This function runs on the user's first click anywhere on the page
+            const unlockAudio = () => {
+                  [fireworksAudioRef.current, eliminationAudioRef.current].forEach(audio => {
+                        if (audio) {
+                              audio.volume = 0; // Mute it so the user doesn't hear the unlocking process
+                              audio.play().then(() => {
+                                    audio.pause();
+                                    audio.currentTime = 0;
+                                    audio.volume = 1; // Turn volume back up for when we actually want to play it
+                              }).catch(e => console.log('Audio unlock blocked/failed', e));
+                        }
+                  });
+                  
+                  // Once unlocked, we remove the event listeners so this only runs once
+                  document.removeEventListener('click', unlockAudio);
+                  document.removeEventListener('touchstart', unlockAudio);
+            };
+
+            // Attach listeners to wait for the first user interaction
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('touchstart', unlockAudio);
+
+            return () => {
+                  document.removeEventListener('click', unlockAudio);
+                  document.removeEventListener('touchstart', unlockAudio);
+            };
+      }, []);
+
       const triggerHaptic = () => {
-            // 1. Android Vibration
             if (typeof navigator !== 'undefined' && navigator.vibrate) {
                   navigator.vibrate(50); 
             }
 
-            // 2. Universal UI Audio "Tick" (Perfect for iPhone!)
             try {
                   const AudioContext = window.AudioContext || window.webkitAudioContext;
                   if (AudioContext) {
@@ -40,7 +77,7 @@ export default function App() {
                         osc.frequency.setValueAtTime(600, ctx.currentTime);
                         osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
                         
-                        gain.gain.setValueAtTime(0.15, ctx.currentTime); // Gentle volume
+                        gain.gain.setValueAtTime(0.15, ctx.currentTime); 
                         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
                         
                         osc.connect(gain);
@@ -97,7 +134,6 @@ export default function App() {
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
 
-      // Regular birthday confetti
       useEffect(() => {
             const fireConfetti = () => {
                   confetti({
@@ -112,13 +148,24 @@ export default function App() {
             return () => clearInterval(interval);
       }, []);
 
-      // Epic Blindside Fireworks & Audio Effect
+      // --- NEW: Elimination Splash Screen Audio ---
+      useEffect(() => {
+            if (eliminatedPlayer && eliminationAudioRef.current) {
+                  eliminationAudioRef.current.currentTime = 0; // Rewind to start
+                  eliminationAudioRef.current.play().catch(e => console.log('Elimination audio blocked:', e));
+            }
+      }, [eliminatedPlayer]);
+
+      // --- UPDATED: Epic Blindside Fireworks & Audio Effect ---
       useEffect(() => {
             let fireworksInterval;
 
             if (blindsideWinner) {
-                  const audio = new Audio('/fireworks.mp3');
-                  audio.play().catch(e => console.log('Audio blocked by browser:', e));
+                  // We now use the unlocked global ref instead of creating a new Audio instance
+                  if (fireworksAudioRef.current) {
+                        fireworksAudioRef.current.currentTime = 0; // Rewind to start
+                        fireworksAudioRef.current.play().catch(e => console.log('Fireworks audio blocked:', e));
+                  }
                   
                   const duration = 12 * 1000;
                   const animationEnd = Date.now() + duration;
@@ -653,7 +700,7 @@ export default function App() {
                               <button
                                     className="squish-button"
                                     onClick={async () => {
-                                          triggerHaptic(); // Audio + Android Buzz fires right here
+                                          triggerHaptic(); 
                                           
                                           let email = localStorage.getItem('survivor_email');
                                           let username = localStorage.getItem('survivor_username');
