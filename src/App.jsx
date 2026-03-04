@@ -232,7 +232,7 @@ export default function App() {
                               </div>
                               <p style={{
                                     margin: 0,
-                                    fontSize: '0.9rem', // Slightly smaller base font for mobile
+                                    fontSize: '0.9rem',
                                     color: '#f8fafc',
                                     lineHeight: '1.5',
                                     fontWeight: '600',
@@ -242,10 +242,10 @@ export default function App() {
                                     <span style={{
                                           color: '#f97316',
                                           fontWeight: '900',
-                                          fontSize: 'clamp(1rem, 4.5vw, 1.2rem)', // Scalable font
+                                          fontSize: 'clamp(1rem, 4.5vw, 1.2rem)',
                                           marginTop: '5px',
-                                          whiteSpace: 'nowrap', // Prevents wrapping
-                                          display: 'inline-block' // Allows margin/padding without breaking line
+                                          whiteSpace: 'nowrap',
+                                          display: 'inline-block'
                                     }}>
                                           🎉 HAPPY BIRTHDAY RAYA! 🎉
                                     </span>
@@ -258,7 +258,6 @@ export default function App() {
                               <div className="custom-scrollbar" style={{ maxHeight: '106px', overflowY: 'auto', paddingRight: '10px' }}>
                                     {scores.length > 0 ? (
                                           (() => {
-                                                // 1. Calculate if there's a tie for first place
                                                 const topScore = scores[0].points;
                                                 const isTieForFirst = scores.filter(s => s.points === topScore).length > 1;
 
@@ -268,11 +267,10 @@ export default function App() {
                                                             justifyContent: 'space-between',
                                                             alignItems: 'center',
                                                             fontSize: '1.1rem',
-                                                            height: '52px', // Fixed height per row for scrolling precision
+                                                            height: '52px',
                                                             borderBottom: '1px solid #1e293b'
                                                       }}>
                                                             <span style={{ fontWeight: '600', color: '#f8fafc' }}>
-                                                                  {/* 2. Only show crown if no tie and is index 0 */}
                                                                   {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
                                                                   {s.username}
                                                             </span>
@@ -285,8 +283,7 @@ export default function App() {
                                           })()
                                     ) : (
                                           <div style={{ textAlign: 'center', fontSize: '0.9rem', color: '#475569', padding: '20px 0' }}>No active players.</div>
-                                    )
-                                    }
+                                    )}
                               </div>
                         </div>
 
@@ -354,8 +351,19 @@ export default function App() {
                                                 <div key={c.id} style={{ position: 'relative' }}>
                                                       {isAdmin && (
                                                             <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 10, padding: '0 5px' }}>
-                                                                  <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer' }}>✕</button>
-                                                                  <button onClick={async () => { await supabase.from('contestants').update({ is_at_risk: false }).eq('id', c.id); fetchData(); }} style={{ background: '#eab308', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}>🛡️</button>
+                                                                  <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0 }}>✕</button>
+                                                                  <div style={{ display: 'flex', gap: '5px' }}>
+                                                                        {/* HIDDEN IMMUNITY IDOL TOGGLE */}
+                                                                        <button 
+                                                                              onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }} 
+                                                                              style={{ background: c.is_immune ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                              title="Play Hidden Immunity"
+                                                                        >
+                                                                              🗿
+                                                                        </button>
+                                                                        {/* RETURN TO CAMP SAFE TOGGLE */}
+                                                                        <button onClick={async () => { await supabase.from('contestants').update({ is_at_risk: false }).eq('id', c.id); fetchData(); }} style={{ background: '#eab308', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛡️</button>
+                                                                  </div>
                                                             </div>
                                                       )}
                                                       <button
