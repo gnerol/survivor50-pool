@@ -12,6 +12,10 @@ export default function App() {
       const [voteCount, setVoteCount] = useState(0);
       const [eliminatedPlayer, setEliminatedPlayer] = useState(null);
       const [showRules, setShowRules] = useState(false);
+      
+      // STATE FOR BLINDSIDE NOTIFICATIONS
+      const [blindsideWinner, setBlindsideWinner] = useState(false); // Private full-screen celebration
+      const [publicBlindsideWinners, setPublicBlindsideWinners] = useState(null); // Public banner for everyone else
 
       const [timerEndAt, setTimerEndAt] = useState(null);
       const [secondsLeft, setSecondsLeft] = useState(0);
@@ -90,9 +94,43 @@ export default function App() {
                         setTimerEndAt(payload.new.timer_end_at);
                         fetchData();
                   })
-                  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contestants' }, (payload) => {
+                  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contestants' }, async (payload) => {
                         if (payload.new.is_eliminated && !payload.old.is_eliminated) {
                               setEliminatedPlayer(payload.new.name);
+                              
+                              // Check for blindsides for everyone observing the screen!
+                              const { data: g } = await supabase.from('game_settings').select('current_week').single();
+                              const week = g?.current_week || 2;
+
+                              // Fetch all votes to figure out the math
+                              const { data: weekVotes } = await supabase.from('votes').select('*').eq('week_number', week);
+                              
+                              if (weekVotes && weekVotes.length > 0) {
+                                    const totalVotes = weekVotes.length;
+                                    const correctVotes = weekVotes.filter(v => v.contestant_id === payload.new.id);
+                                    
+                                    // If at least 1 person guessed it, AND it's 20% or less of the total votes
+                                    if (correctVotes.length > 0 && (correctVotes.length / totalVotes) <= 0.20) {
+                                          const winnerNames = correctVotes.map(v => v.username);
+                                          const email = localStorage.getItem('survivor_email');
+                                          const isThisUserAWinner = correctVotes.some(v => v.email === email);
+
+                                          // Wait for the "Tribe Has Spoken" 5-second screen to finish...
+                                          setTimeout(() => {
+                                                if (isThisUserAWinner) {
+                                                      // The Private Full-Screen Celebration
+                                                      setBlindsideWinner(true);
+                                                      confetti({ particleCount: 300, spread: 200, origin: { y: 0.5 }, zIndex: 10001 });
+                                                      setTimeout(() => setBlindsideWinner(false), 7000);
+                                                } else {
+                                                      // The Public Announcement Banner for everyone else
+                                                      setPublicBlindsideWinners(winnerNames);
+                                                      setTimeout(() => setPublicBlindsideWinners(null), 7000);
+                                                }
+                                          }, 5000); 
+                                    }
+                              }
+
                               setTimeout(() => setEliminatedPlayer(null), 5000);
                         }
                         fetchData();
@@ -117,7 +155,6 @@ export default function App() {
             }
       };
 
-      // UPDATED ELIMINATION LOGIC FOR BLINDSIDES AND STREAKS
       const handleEliminate = async (id) => {
             if (!window.confirm("Snuff torch? This will calculate scores, blindsides, and streaks!")) return;
             
@@ -131,13 +168,12 @@ export default function App() {
                   // 3. Calculate Blindside Math
                   const totalVotes = weekVotes.length;
                   const eliminatedVotes = weekVotes.filter(v => v.contestant_id === id).length;
-                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.20; // 20% or less guessed correctly
+                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.20; 
 
                   // 4. Process each player's vote progressively
                   for (const v of weekVotes) {
                         const isCorrect = v.contestant_id === id;
                         
-                        // Fetch their current profile to get progressive points and streak
                         const { data: p } = await supabase.from('profiles').select('points, streak').eq('email', v.email).maybeSingle();
                         
                         let currentPoints = p?.points || 0;
@@ -147,14 +183,14 @@ export default function App() {
                         let newStreak = 0;
 
                         if (isCorrect) {
-                              newStreak = currentStreak + 1; // Increase streak progressively
-                              pointsEarned = 10; // Base points
+                              newStreak = currentStreak + 1;
+                              pointsEarned = 10; 
                               
-                              if (isBlindside) pointsEarned += 15; // Blindside Bonus (+25 total base)
-                              if (newStreak >= 2) pointsEarned += 2; // Hot Streak Bonus
+                              if (isBlindside) pointsEarned += 15; 
+                              if (newStreak >= 2) pointsEarned += 2; 
                         } else {
-                              newStreak = 0; // Reset streak progressively
-                              pointsEarned = -2; // Wrong guess penalty
+                              newStreak = 0; 
+                              pointsEarned = -2; 
                         }
 
                         // 5. Save the progressive points and new streak back to the database
@@ -189,6 +225,32 @@ export default function App() {
                               <h2 style={{ color: '#64748b', letterSpacing: '8px', fontSize: '1rem', marginBottom: '10px' }}>THE TRIBE HAS SPOKEN</h2>
                               <h1 style={{ color: '#f97316', fontSize: '3rem', fontWeight: '900', textShadow: '0 0 20px rgba(249, 115, 22, 0.6)' }}>{eliminatedPlayer.toUpperCase()}</h1>
                               <div style={{ marginTop: '20px', fontSize: '2rem' }}>🔥💨</div>
+                        </div>
+                  )}
+
+                  {/* EPIC BLINDSIDE BONUS OVERLAY (PRIVATE FOR WINNER) */}
+                  {blindsideWinner && (
+                        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.97)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
+                              <div style={{ fontSize: '5rem', marginBottom: '10px' }}>😱🚨</div>
+                              <h1 style={{ color: '#22c55e', fontSize: 'clamp(2.5rem, 8vw, 4rem)', fontWeight: '900', textShadow: '0 0 30px rgba(34, 197, 94, 0.6)', margin: '0 0 10px 0', lineHeight: '1', letterSpacing: '2px' }}>
+                                    EPIC BLINDSIDE!
+                              </h1>
+                              <h2 style={{ color: '#f8fafc', fontSize: '1.2rem', fontWeight: 'bold', maxWidth: '600px', padding: '0 20px', lineHeight: '1.5' }}>
+                                    Almost no one saw that coming... but YOU did!
+                              </h2>
+                              <div style={{ background: '#f97316', color: 'white', padding: '15px 40px', borderRadius: '50px', fontSize: '2rem', fontWeight: '900', marginTop: '30px', boxShadow: '0 10px 30px rgba(249, 115, 22, 0.5)', border: '2px solid #ffedd5' }}>
+                                    +25 POINTS 🔥
+                              </div>
+                        </div>
+                  )}
+
+                  {/* PUBLIC BLINDSIDE ANNOUNCEMENT BANNER (FOR EVERYONE ELSE) */}
+                  {publicBlindsideWinners && (
+                        <div style={{ position: 'fixed', top: '25%', left: '50%', transform: 'translateX(-50%)', background: '#0f172a', border: '2px solid #22c55e', color: 'white', padding: '20px 30px', borderRadius: '24px', fontWeight: 'bold', zIndex: 10000, textAlign: 'center', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(34, 197, 94, 0.3)', minWidth: '300px' }}>
+                              <div style={{ color: '#22c55e', fontSize: '1.5rem', marginBottom: '10px', fontWeight: '900', letterSpacing: '1px' }}>🚨 BLINDSIDE ALERT!</div>
+                              <div style={{ color: '#f8fafc', fontSize: '1.1rem', lineHeight: '1.4' }}>
+                                    <span style={{ color: '#f97316', fontWeight: '900' }}>{publicBlindsideWinners.join(' & ')}</span> saw it coming and scored massive bonus points!
+                              </div>
                         </div>
                   )}
 
@@ -306,7 +368,6 @@ export default function App() {
                                                             <span style={{ fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center' }}>
                                                                   {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
                                                                   {s.username}
-                                                                  {/* UPDATED: HOT STREAK DISPLAY */}
                                                                   {s.streak >= 2 && (
                                                                         <span style={{ marginLeft: '8px', fontSize: '0.8rem', color: '#f97316', background: 'rgba(249, 115, 22, 0.1)', padding: '2px 6px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '3px' }} title={`Hot Streak: ${s.streak} in a row!`}>
                                                                               🔥{s.streak}
