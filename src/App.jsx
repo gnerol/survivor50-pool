@@ -21,6 +21,13 @@ export default function App() {
       const [showTimeAdded, setShowTimeAdded] = useState(false);
       const timerRef = useRef(null);
 
+      // --- NEW HAPTIC FEEDBACK FUNCTION ---
+      const triggerHaptic = () => {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                  navigator.vibrate(50); 
+            }
+      };
+
       const fetchData = useCallback(async () => {
             const { data: c } = await supabase.from('contestants').select('*').order('name');
             const { data: s } = await supabase.from('profiles').select('*').order('points', { ascending: false });
@@ -84,11 +91,9 @@ export default function App() {
             let fireworksInterval;
 
             if (blindsideWinner) {
-                  // 1. PLAY FIREWORKS AUDIO
                   const audio = new Audio('/fireworks.mp3');
                   audio.play().catch(e => console.log('Audio blocked by browser:', e));
                   
-                  // 2. LAUNCH FIREWORKS ANIMATION
                   const duration = 12 * 1000;
                   const animationEnd = Date.now() + duration;
                   const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10001 };
@@ -104,12 +109,10 @@ export default function App() {
 
                         const particleCount = 50 * (timeLeft / duration);
                         
-                        // Left side burst
                         confetti(Object.assign({}, defaults, { 
                               particleCount, 
                               origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
                         }));
-                        // Right side burst
                         confetti(Object.assign({}, defaults, { 
                               particleCount, 
                               origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
@@ -148,23 +151,16 @@ export default function App() {
                                     const totalVotes = weekVotes.length;
                                     const correctVotes = weekVotes.filter(v => v.contestant_id === payload.new.id);
                                     
-                                    // BUMPED TO 25% (0.25)
                                     if (correctVotes.length > 0 && (correctVotes.length / totalVotes) <= 0.25) {
                                           const winnerNames = correctVotes.map(v => v.username);
                                           const email = localStorage.getItem('survivor_email');
                                           
-                                          // Check if THIS specific tab is the admin tab
                                           const isCurrentlyAdmin = sessionStorage.getItem('is_survivor_admin') === 'true';
-                                          
-                                          // Only show private fireworks if they won AND are not currently the admin
                                           const isThisUserAWinner = !isCurrentlyAdmin && correctVotes.some(v => v.email === email);
 
-                                          // Wait for the "Tribe Has Spoken" 5-second screen to finish
                                           setTimeout(() => {
                                                 if (isThisUserAWinner) {
                                                       setBlindsideWinner(true);
-                                                      
-                                                      // Hide after 12 full seconds
                                                       setTimeout(() => setBlindsideWinner(false), 12000);
                                                 } else {
                                                       setPublicBlindsideWinners(winnerNames);
@@ -191,6 +187,7 @@ export default function App() {
       };
 
       const handleAdminToggle = () => {
+            triggerHaptic(); 
             if (isAdmin) { setIsAdmin(false); sessionStorage.removeItem('is_survivor_admin'); }
             else {
                   const code = window.prompt("Admin Code:");
@@ -209,7 +206,6 @@ export default function App() {
                   const totalVotes = weekVotes.length;
                   const eliminatedVotes = weekVotes.filter(v => v.contestant_id === id).length;
                   
-                  // BUMPED TO 25% (0.25)
                   const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.25; 
 
                   for (const v of weekVotes) {
@@ -258,6 +254,16 @@ export default function App() {
 
       return (
             <div style={{ backgroundColor: '#020617', color: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', overflowX: 'hidden', paddingBottom: '180px' }}>
+                  
+                  {/* CSS SQUISH ANIMATION */}
+                  <style>{`
+                        .squish-button {
+                              transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), border 0.3s ease, opacity 0.3s ease !important;
+                        }
+                        .squish-button:active:not(:disabled) {
+                              transform: scale(0.96) !important;
+                        }
+                  `}</style>
 
                   {/* ELIMINATION OVERLAY */}
                   {eliminatedPlayer && (
@@ -268,7 +274,7 @@ export default function App() {
                         </div>
                   )}
 
-                  {/* EPIC BLINDSIDE BONUS OVERLAY (PRIVATE FOR WINNER) */}
+                  {/* EPIC BLINDSIDE BONUS OVERLAY */}
                   {blindsideWinner && (
                         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.97)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
                               <div style={{ fontSize: '5rem', marginBottom: '10px' }}>😱🚨</div>
@@ -284,7 +290,7 @@ export default function App() {
                         </div>
                   )}
 
-                  {/* PUBLIC BLINDSIDE ANNOUNCEMENT BANNER (FOR EVERYONE ELSE) */}
+                  {/* PUBLIC BLINDSIDE ANNOUNCEMENT BANNER */}
                   {publicBlindsideWinners && (
                         <div style={{ position: 'fixed', top: '25%', left: '50%', transform: 'translateX(-50%)', background: '#0f172a', border: '2px solid #22c55e', color: 'white', padding: '20px 30px', borderRadius: '24px', fontWeight: 'bold', zIndex: 10000, textAlign: 'center', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(34, 197, 94, 0.3)', minWidth: '300px' }}>
                               <div style={{ color: '#22c55e', fontSize: '1.5rem', marginBottom: '10px', fontWeight: '900', letterSpacing: '1px' }}>🚨 BLINDSIDE ALERT!</div>
@@ -305,7 +311,7 @@ export default function App() {
                   {showRules && (
                         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.95)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'fadeIn 0.3s ease' }}>
                               <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '24px', padding: '30px', maxWidth: '500px', width: '100%', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                                    <button onClick={() => setShowRules(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
+                                    <button onClick={() => { triggerHaptic(); setShowRules(false); }} className="squish-button" style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
 
                                     <h2 style={{ color: '#f97316', marginTop: 0, marginBottom: '20px', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '1px' }}>📜 HOW TO PLAY</h2>
 
@@ -314,11 +320,11 @@ export default function App() {
                                           <li><strong>One Vote Per Week:</strong> You get exactly one vote per episode to guess who gets their torch snuffed.</li>
                                           <li><strong>Beat the Clock ⏳:</strong> Once the countdown hits zero, voting is locked. No exceptions!</li>
                                           <li><strong>Scoring 🎯:</strong> Earn <span style={{ color: '#22c55e', fontWeight: 'bold' }}>+10</span> points for a correct guess, but lose <span style={{ color: '#ef4444', fontWeight: 'bold' }}>-2</span> points for a wrong guess.</li>
-                                          <li><strong>Blindsides 😱:</strong> If 20% or fewer of the players guess correctly, those who did earn a massive +25 points!</li>
+                                          <li><strong>Blindsides 😱:</strong> If 25% or fewer of the players guess correctly, those who did earn a massive +25 points!</li>
                                           <li><strong>Hot Streaks 🔥:</strong> Guess correctly two weeks in a row to start a streak and earn bonus points!</li>
                                     </ul>
 
-                                    <button onClick={() => setShowRules(false)} style={{ width: '100%', background: '#3b82f6', color: 'white', border: 'none', padding: '15px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 'bold', marginTop: '30px', cursor: 'pointer', transition: '0.2s' }}>
+                                    <button onClick={() => { triggerHaptic(); setShowRules(false); }} className="squish-button" style={{ width: '100%', background: '#3b82f6', color: 'white', border: 'none', padding: '15px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 'bold', marginTop: '30px', cursor: 'pointer' }}>
                                           GOT IT, LET'S PLAY!
                                     </button>
                               </div>
@@ -342,10 +348,10 @@ export default function App() {
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
-                              <button onClick={() => setShowRules(true)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '12px 16px', borderRadius: '12px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+                              <button onClick={() => { triggerHaptic(); setShowRules(true); }} className="squish-button" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '12px 16px', borderRadius: '12px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' }}>
                                     ❓ Rules
                               </button>
-                              <button onClick={handleAdminToggle} style={{ background: '#1e293b', border: 'none', padding: '12px', borderRadius: '12px', fontSize: '1.4rem', cursor: 'pointer' }}>
+                              <button onClick={handleAdminToggle} className="squish-button" style={{ background: '#1e293b', border: 'none', padding: '12px', borderRadius: '12px', fontSize: '1.4rem', cursor: 'pointer' }}>
                                     {isAdmin ? '🔒' : '🛠️'}
                               </button>
                         </div>
@@ -431,10 +437,11 @@ export default function App() {
                         {isAdmin && (
                               <div style={{ border: '2px solid #ef4444', padding: '15px', borderRadius: '20px', marginBottom: '30px', background: 'rgba(239, 68, 68, 0.1)' }}>
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                          <button onClick={() => adjustTimer(60)} style={{ flex: 1, padding: '10px', background: '#f97316', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>+1 MIN</button>
-                                          <button onClick={() => adjustTimer(15)} style={{ flex: 1, padding: '10px', background: '#eab308', color: 'black', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>+15 SEC</button>
+                                          <button onClick={() => adjustTimer(60)} className="squish-button" style={{ flex: 1, padding: '10px', background: '#f97316', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>+1 MIN</button>
+                                          <button onClick={() => adjustTimer(15)} className="squish-button" style={{ flex: 1, padding: '10px', background: '#eab308', color: 'black', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>+15 SEC</button>
                                     </div>
                                     <button
+                                          className="squish-button"
                                           onClick={async () => {
                                                 if (!window.confirm("RESET ENTIRE GAME? This deletes all votes, points, and streaks!")) return;
                                                 try {
@@ -452,12 +459,13 @@ export default function App() {
                                           HARD RESET GAME
                                     </button>
                                     <button
+                                          className="squish-button"
                                           onClick={async () => {
                                                 await supabase.from('game_settings').update({ current_week: currentWeek + 1, timer_end_at: null }).neq('id', -1);
                                                 await supabase.from('contestants').update({ is_at_risk: false, is_immune: false }).eq('is_eliminated', false);
                                                 fetchData();
                                           }}
-                                          style={{ width: '100%', padding: '14px', background: '#22c55e', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '12px' }}
+                                          style={{ width: '100%', padding: '14px', background: '#22c55e', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '12px', cursor: 'pointer' }}
                                     >
                                           START NEXT EPISODE
                                     </button>
@@ -504,12 +512,17 @@ export default function App() {
                                                             </div>
                                                       )}
                                                       <button
+                                                            className="squish-button"
                                                             disabled={(isVotingLocked && !isAdmin) || c.is_immune || hasVoted}
-                                                            onClick={() => !hasVoted && !c.is_immune && setSelectedCandidate(selectedCandidate?.id === c.id ? null : c)}
+                                                            onClick={() => {
+                                                                  if (!hasVoted && !c.is_immune) {
+                                                                        triggerHaptic(); 
+                                                                        setSelectedCandidate(selectedCandidate?.id === c.id ? null : c);
+                                                                  }
+                                                            }}
                                                             style={{
                                                                   width: '100%', padding: 0, borderRadius: '24px', overflow: 'hidden', background: '#0f172a',
                                                                   border: c.is_immune ? '4px solid #eab308' : (selectedCandidate?.id === c.id ? '4px solid #f97316' : '2px solid #ef4444'),
-                                                                  transition: '0.3s',
                                                                   opacity: (isVotingLocked && !isAdmin) || c.is_immune ? 0.6 : 1,
                                                                   cursor: (isVotingLocked && !isAdmin) || c.is_immune || hasVoted ? 'not-allowed' : 'pointer',
                                                                   position: 'relative'
@@ -531,6 +544,7 @@ export default function App() {
 
                                     {isAdmin && (
                                           <button
+                                                className="squish-button"
                                                 onClick={async () => {
                                                       setContestants(contestants.map(p => ({ ...p, is_at_risk: false, is_immune: false })));
                                                       await supabase.from('contestants').update({ is_at_risk: false, is_immune: false }).eq('is_eliminated', false);
@@ -549,6 +563,7 @@ export default function App() {
                                                 <h2 style={{ fontSize: '1.1rem', color: members[0].tribe_color || '#f97316' }}>{name.toUpperCase()}</h2>
                                                 {isAdmin && (
                                                       <button
+                                                            className="squish-button"
                                                             onClick={async () => {
                                                                   setContestants(contestants.map(p => p.tribe_name === name && !p.is_eliminated ? { ...p, is_at_risk: true } : p));
                                                                   await supabase.from('contestants').update({ is_at_risk: true }).eq('tribe_name', name).eq('is_eliminated', false);
@@ -609,7 +624,10 @@ export default function App() {
                   {!isAdmin && selectedCandidate && selectedCandidate.is_at_risk && !hasVoted && !isVotingLocked && !selectedCandidate.is_immune && (
                         <div style={{ position: 'fixed', bottom: '0', left: '0', right: '0', padding: '25px', background: 'linear-gradient(to top, #020617 70%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
                               <button
+                                    className="squish-button"
                                     onClick={async () => {
+                                          triggerHaptic(); 
+                                          
                                           let email = localStorage.getItem('survivor_email');
                                           let username = localStorage.getItem('survivor_username');
 
