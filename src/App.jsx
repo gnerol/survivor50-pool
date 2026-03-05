@@ -12,9 +12,9 @@ export default function App() {
       const [voteCount, setVoteCount] = useState(0);
       const [eliminatedPlayer, setEliminatedPlayer] = useState(null);
       const [showRules, setShowRules] = useState(false);
-      
-      const [blindsideWinner, setBlindsideWinner] = useState(false); 
-      const [publicBlindsideWinners, setPublicBlindsideWinners] = useState(null); 
+
+      const [blindsideWinner, setBlindsideWinner] = useState(false);
+      const [publicBlindsideWinners, setPublicBlindsideWinners] = useState(null);
 
       const [timerEndAt, setTimerEndAt] = useState(null);
       const [secondsLeft, setSecondsLeft] = useState(0);
@@ -50,7 +50,7 @@ export default function App() {
                               }).catch(e => console.log('Snuff Unlock blocked:', e));
                         }
                   }
-                  
+
                   // Once unlocked, we remove the event listeners so this only runs once
                   document.removeEventListener('click', unlockAudio);
                   document.removeEventListener('touchstart', unlockAudio);
@@ -68,7 +68,7 @@ export default function App() {
 
       const triggerHaptic = () => {
             if (typeof navigator !== 'undefined' && navigator.vibrate) {
-                  navigator.vibrate(50); 
+                  navigator.vibrate(50);
             }
 
             try {
@@ -77,17 +77,17 @@ export default function App() {
                         const ctx = new AudioContext();
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
-                        
+
                         osc.type = 'sine';
                         osc.frequency.setValueAtTime(600, ctx.currentTime);
                         osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
-                        
-                        gain.gain.setValueAtTime(0.15, ctx.currentTime); 
+
+                        gain.gain.setValueAtTime(0.15, ctx.currentTime);
                         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-                        
+
                         osc.connect(gain);
                         gain.connect(ctx.destination);
-                        
+
                         osc.start();
                         osc.stop(ctx.currentTime + 0.05);
                   }
@@ -126,7 +126,9 @@ export default function App() {
 
       useEffect(() => {
             if (timerRef.current) clearInterval(timerRef.current);
-            timerRef.current = setInterval(() => {
+            
+            // Extract the math into a function
+            const updateTimer = () => {
                   if (!timerEndAt) {
                         setSecondsLeft(0);
                         return;
@@ -135,7 +137,14 @@ export default function App() {
                   const now = Date.now();
                   const diff = Math.max(0, Math.floor((target - now) / 1000));
                   setSecondsLeft(diff);
-            }, 1000);
+            };
+
+            // Call it instantly so there is no 1-second lag!
+            updateTimer(); 
+            
+            // Then start the 1-second ticks
+            timerRef.current = setInterval(updateTimer, 1000);
+            
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
 
@@ -156,7 +165,7 @@ export default function App() {
       // Elimination Splash Screen Audio 
       useEffect(() => {
             if (eliminatedPlayer && eliminationAudioRef.current) {
-                  eliminationAudioRef.current.currentTime = 0; 
+                  eliminationAudioRef.current.currentTime = 0;
                   eliminationAudioRef.current.play().catch(e => console.log('Elimination audio blocked:', e));
             }
       }, [eliminatedPlayer]);
@@ -167,17 +176,17 @@ export default function App() {
 
             if (blindsideWinner) {
                   if (fireworksAudioRef.current) {
-                        fireworksAudioRef.current.currentTime = 0; 
+                        fireworksAudioRef.current.currentTime = 0;
                         fireworksAudioRef.current.play().catch(e => console.log('Fireworks audio blocked:', e));
                   }
-                  
+
                   const duration = 12 * 1000;
                   const animationEnd = Date.now() + duration;
                   const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10001 };
 
                   const randomInRange = (min, max) => Math.random() * (max - min) + min;
 
-                  fireworksInterval = setInterval(function() {
+                  fireworksInterval = setInterval(function () {
                         const timeLeft = animationEnd - Date.now();
 
                         if (timeLeft <= 0) {
@@ -185,14 +194,14 @@ export default function App() {
                         }
 
                         const particleCount = 50 * (timeLeft / duration);
-                        
-                        confetti(Object.assign({}, defaults, { 
-                              particleCount, 
-                              origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
+
+                        confetti(Object.assign({}, defaults, {
+                              particleCount,
+                              origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
                         }));
-                        confetti(Object.assign({}, defaults, { 
-                              particleCount, 
-                              origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
+                        confetti(Object.assign({}, defaults, {
+                              particleCount,
+                              origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
                         }));
                   }, 250);
             }
@@ -218,20 +227,20 @@ export default function App() {
                   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contestants' }, async (payload) => {
                         if (payload.new.is_eliminated && !payload.old.is_eliminated) {
                               setEliminatedPlayer(payload.new.name);
-                              
+
                               const { data: g } = await supabase.from('game_settings').select('current_week').single();
                               const week = g?.current_week || 2;
 
                               const { data: weekVotes } = await supabase.from('votes').select('*').eq('week_number', week);
-                              
+
                               if (weekVotes && weekVotes.length > 0) {
                                     const totalVotes = weekVotes.length;
                                     const correctVotes = weekVotes.filter(v => v.contestant_id === payload.new.id);
-                                    
+
                                     if (correctVotes.length > 0 && (correctVotes.length / totalVotes) <= 0.25) {
                                           const winnerNames = correctVotes.map(v => v.username);
                                           const email = localStorage.getItem('survivor_email');
-                                          
+
                                           const isCurrentlyAdmin = sessionStorage.getItem('is_survivor_admin') === 'true';
                                           const isThisUserAWinner = !isCurrentlyAdmin && correctVotes.some(v => v.email === email);
 
@@ -243,7 +252,7 @@ export default function App() {
                                                       setPublicBlindsideWinners(winnerNames);
                                                       setTimeout(() => setPublicBlindsideWinners(null), 12000);
                                                 }
-                                          }, 5000); 
+                                          }, 5000);
                                     }
                               }
 
@@ -264,7 +273,7 @@ export default function App() {
       };
 
       const handleAdminToggle = () => {
-            triggerHaptic(); 
+            triggerHaptic();
             if (isAdmin) { setIsAdmin(false); sessionStorage.removeItem('is_survivor_admin'); }
             else {
                   const code = window.prompt("Admin Code:");
@@ -274,42 +283,42 @@ export default function App() {
 
       const handleEliminate = async (id) => {
             if (!window.confirm("Snuff torch? This will calculate scores, blindsides, and streaks!")) return;
-            
+
             await supabase.from('contestants').update({ is_eliminated: true, is_at_risk: false, is_immune: false }).eq('id', id);
-            
+
             const { data: weekVotes } = await supabase.from('votes').select('*').eq('week_number', currentWeek);
-            
+
             if (weekVotes && weekVotes.length > 0) {
                   const totalVotes = weekVotes.length;
                   const eliminatedVotes = weekVotes.filter(v => v.contestant_id === id).length;
-                  
-                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.25; 
+
+                  const isBlindside = totalVotes > 0 && (eliminatedVotes / totalVotes) <= 0.25;
 
                   for (const v of weekVotes) {
                         const isCorrect = v.contestant_id === id;
-                        
+
                         const { data: p } = await supabase.from('profiles').select('points, streak').eq('email', v.email).maybeSingle();
-                        
+
                         let currentPoints = p?.points || 0;
                         let currentStreak = p?.streak || 0;
-                        
+
                         let pointsEarned = 0;
                         let newStreak = 0;
 
                         if (isCorrect) {
                               newStreak = currentStreak + 1;
-                              pointsEarned = 10; 
-                              
-                              if (isBlindside) pointsEarned += 15; 
-                              if (newStreak >= 2) pointsEarned += 2; 
+                              pointsEarned = 10;
+
+                              if (isBlindside) pointsEarned += 15;
+                              if (newStreak >= 2) pointsEarned += 2;
                         } else {
-                              newStreak = 0; 
-                              pointsEarned = -2; 
+                              newStreak = 0;
+                              pointsEarned = -2;
                         }
 
-                        await supabase.from('profiles').upsert({ 
-                              email: v.email, 
-                              username: v.username, 
+                        await supabase.from('profiles').upsert({
+                              email: v.email,
+                              username: v.username,
                               points: currentPoints + pointsEarned,
                               streak: newStreak
                         }, { onConflict: 'email' });
@@ -320,7 +329,7 @@ export default function App() {
 
       const atRiskLegends = contestants.filter(c => c.is_at_risk && !c.is_eliminated);
       const isVotingPhase = atRiskLegends.length > 0;
-      const isVotingLocked = timerEndAt && secondsLeft === 0;
+      const isVotingLocked = timerEndAt ? new Date(timerEndAt).getTime() <= Date.now() : false;
       const tribes = contestants.filter(c => !c.is_eliminated).reduce((acc, c) => {
             const t = c.tribe_name || 'Merge';
             if (!acc[t]) acc[t] = [];
@@ -331,7 +340,7 @@ export default function App() {
 
       return (
             <div style={{ backgroundColor: '#020617', color: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', overflowX: 'hidden', paddingBottom: '180px' }}>
-                  
+
                   {/* --- NEW: Hidden DOM Audio Elements for Mobile --- */}
                   <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" style={{ display: 'none' }} />
                   <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" style={{ display: 'none' }} />
@@ -582,8 +591,8 @@ export default function App() {
                                                             <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 10, padding: '0 5px' }}>
                                                                   <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0 }}>✕</button>
                                                                   <div style={{ display: 'flex', gap: '5px' }}>
-                                                                        <button 
-                                                                              onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }} 
+                                                                        <button
+                                                                              onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }}
                                                                               style={{ background: c.is_immune ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                                               title="Play Hidden Immunity"
                                                                         >
@@ -598,7 +607,7 @@ export default function App() {
                                                             disabled={(isVotingLocked && !isAdmin) || c.is_immune || hasVoted}
                                                             onClick={() => {
                                                                   if (!hasVoted && !c.is_immune) {
-                                                                        triggerHaptic(); 
+                                                                        triggerHaptic();
                                                                         setSelectedCandidate(selectedCandidate?.id === c.id ? null : c);
                                                                   }
                                                             }}
@@ -708,17 +717,31 @@ export default function App() {
                               <button
                                     className="squish-button"
                                     onClick={async () => {
-                                          triggerHaptic(); 
-                                          
+                                          triggerHaptic();
+
                                           let email = localStorage.getItem('survivor_email');
                                           let username = localStorage.getItem('survivor_username');
 
+                                          // If they don't have an email saved, prompt them
                                           if (!email) {
-                                                const inputEmail = window.prompt("Enter your email to vote:");
+                                                const inputEmail = window.prompt("Enter your email to vote (e.g., player@example.com):");
+
+                                                // If they click cancel or leave it blank, stop here
                                                 if (!inputEmail) {
                                                       setSelectedCandidate(null);
                                                       return;
                                                 }
+
+                                                // --- NEW: Email Validation Check ---
+                                                // This Regex ensures it has letters, an '@' symbol, a domain, a dot, and an extension (like .com)
+                                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                                if (!emailRegex.test(inputEmail.trim())) {
+                                                      window.alert("Please enter a valid email address to ensure your score is saved correctly.");
+                                                      setSelectedCandidate(null);
+                                                      return;
+                                                }
+                                                // -----------------------------------
+
                                                 email = inputEmail.toLowerCase().trim();
 
                                                 const { data: existingVote } = await supabase
