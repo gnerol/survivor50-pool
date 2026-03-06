@@ -690,7 +690,7 @@ export default function App() {
                         {isAdmin && (
                               <div style={{ border: '2px solid #ef4444', padding: '15px', borderRadius: '20px', marginBottom: '30px', background: 'rgba(239, 68, 68, 0.1)' }}>
                                     
-                                    {/* --- NEW: Maintenance Mode Toggle --- */}
+                                    {/* 1. Maintenance Mode Toggle */}
                                     <button
                                           className="squish-button"
                                           onClick={toggleMaintenanceMode}
@@ -698,14 +698,14 @@ export default function App() {
                                     >
                                           {isMaintenanceMode ? "🟢 GAME PAUSED - CLICK TO UNLOCK" : "🚧 PAUSE GAME FOR PLAYERS"}
                                     </button>
-                                    
-                                    {/* ... rest of the admin panel ... */}
 
-                              <div style={{ border: '2px solid #ef4444', padding: '15px', borderRadius: '20px', marginBottom: '30px', background: 'rgba(239, 68, 68, 0.1)' }}>
+                                    {/* 2. Add Time Buttons */}
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                                           <button onClick={() => adjustTimer(60)} className="squish-button" style={{ flex: 1, padding: '10px', background: '#f97316', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>+1 MIN</button>
                                           <button onClick={() => adjustTimer(15)} className="squish-button" style={{ flex: 1, padding: '10px', background: '#eab308', color: 'black', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>+15 SEC</button>
                                     </div>
+
+                                    {/* 3. Hard Reset Button */}
                                     <button
                                           className="squish-button"
                                           onClick={async () => {
@@ -716,7 +716,6 @@ export default function App() {
 
                                                       localStorage.removeItem('survivor_email');
                                                       localStorage.removeItem('survivor_username');
-
                                                       window.location.reload();
                                                 } catch (err) { alert(err.message); }
                                           }}
@@ -724,8 +723,8 @@ export default function App() {
                                     >
                                           HARD RESET GAME
                                     </button>
-                                    
-                                    {/* --- NEW: Manage Tribes & Next Episode Buttons side-by-side --- */}
+
+                                    {/* 4. Manage Tribes & Next Episode Buttons */}
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                           <button
                                                 className="squish-button"
