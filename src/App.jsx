@@ -39,16 +39,18 @@ export default function App() {
                   const sn = eliminationAudioRef.current;
 
                   if (fw && sn) {
-                        // Use strict muting instead of volume changes
+                        // 1. Mute first to prevent the split-second sound blip
                         fw.muted = true;
                         sn.muted = true;
 
                         const playFw = fw.play();
                         if (playFw !== undefined) {
                               playFw.then(() => {
+                                    // 2. Pause immediately
                                     fw.pause();
                                     fw.currentTime = 0;
-                                    // We DO NOT unmute here. We leave it muted until it's actually needed!
+                                    // 3. Unmute AFTER pausing. No sound will play, but iOS now trusts this element!
+                                    fw.muted = false;
                               }).catch(e => console.log('FW Unlock blocked:', e));
                         }
 
@@ -57,7 +59,7 @@ export default function App() {
                               playSn.then(() => {
                                     sn.pause();
                                     sn.currentTime = 0;
-                                    // We DO NOT unmute here. We leave it muted until it's actually needed!
+                                    sn.muted = false; // Unmute ready for the real trigger
                               }).catch(e => console.log('Snuff Unlock blocked:', e));
                         }
                   }
@@ -156,8 +158,6 @@ export default function App() {
 
       useEffect(() => {
             if (eliminatedPlayer && eliminationAudioRef.current) {
-                  // Unmute only exactly when it's time to play
-                  eliminationAudioRef.current.muted = false; 
                   eliminationAudioRef.current.currentTime = 0;
                   eliminationAudioRef.current.play().catch(e => console.log('Elimination audio blocked:', e));
             }
@@ -168,8 +168,6 @@ export default function App() {
 
             if (blindsideWinner) {
                   if (fireworksAudioRef.current) {
-                        // Unmute only exactly when it's time to play
-                        fireworksAudioRef.current.muted = false;
                         fireworksAudioRef.current.currentTime = 0;
                         fireworksAudioRef.current.play().catch(e => console.log('Fireworks audio blocked:', e));
                   }
@@ -666,20 +664,20 @@ export default function App() {
                                           <div>
                                                 <div style={{ color: '#22c55e', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Pro-Tip</div>
                                                 <div style={{ color: '#f8fafc', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                                                      Turn your device volume on. After elimination, stay tuned for any <strong>bonus awards.</strong>
+                                                      Turn your device volume up during voting! Right after the torch is snuffed, stay glued to your screen for live score tallies and bonus reward reveals.
                                                 </div>
                                           </div>
                                     </div>
                               </div>
                         </div>
 
-                        {/* CONDENSED LEADERBOARD (TOP 2 ONLY) */}
+                        {/* CONDENSED SCROLLABLE LEADERBOARD */}
                         <div style={{ background: '#0f172a', padding: '15px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '20px' }}>
                               <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', marginBottom: '10px', letterSpacing: '2px', fontWeight: 'bold' }}>TOP PLAYERS</div>
                               
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div className="hide-scrollbar" style={{ maxHeight: '140px', overflowY: 'auto', paddingRight: '5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     {scores.length > 0 ? (
-                                          scores.slice(0, 2).map((s, i) => {
+                                          scores.map((s, i) => {
                                                 const isFirst = i === 0;
                                                 return (
                                                       <div key={i} style={{
@@ -689,7 +687,8 @@ export default function App() {
                                                             padding: '8px 12px',
                                                             borderRadius: '12px',
                                                             background: isFirst ? 'rgba(234, 179, 8, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-                                                            border: isFirst ? '1px solid #eab308' : '1px solid #94a3b8'
+                                                            border: isFirst ? '1px solid #eab308' : '1px solid #94a3b8',
+                                                            flexShrink: 0 // Ensures items don't get squished when scrolling
                                                       }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                                   <span style={{ fontWeight: '900', color: isFirst ? '#eab308' : '#94a3b8', fontSize: '0.95rem' }}>
