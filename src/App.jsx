@@ -33,22 +33,22 @@ export default function App() {
       const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
       useEffect(() => {
-            // --- FIXED: Audio Mobile Unlock Strategy ---
+            // --- BULLETPROOF iOS AUDIO UNLOCK ---
             const unlockAudio = () => {
                   const fw = fireworksAudioRef.current;
                   const sn = eliminationAudioRef.current;
 
                   if (fw && sn) {
-                        // Temporarily mute to prevent the sound blip on mobile
-                        fw.volume = 0;
-                        sn.volume = 0;
+                        // Use strict muting instead of volume changes
+                        fw.muted = true;
+                        sn.muted = true;
 
                         const playFw = fw.play();
                         if (playFw !== undefined) {
                               playFw.then(() => {
                                     fw.pause();
                                     fw.currentTime = 0;
-                                    fw.volume = 1; // Restore volume
+                                    // We DO NOT unmute here. We leave it muted until it's actually needed!
                               }).catch(e => console.log('FW Unlock blocked:', e));
                         }
 
@@ -57,7 +57,7 @@ export default function App() {
                               playSn.then(() => {
                                     sn.pause();
                                     sn.currentTime = 0;
-                                    sn.volume = 1; // Restore volume
+                                    // We DO NOT unmute here. We leave it muted until it's actually needed!
                               }).catch(e => console.log('Snuff Unlock blocked:', e));
                         }
                   }
@@ -66,7 +66,6 @@ export default function App() {
                   document.removeEventListener('touchstart', unlockAudio);
             };
 
-            // Using once: true ensures it only fires a single time
             document.addEventListener('click', unlockAudio, { once: true });
             document.addEventListener('touchstart', unlockAudio, { once: true });
 
@@ -157,6 +156,8 @@ export default function App() {
 
       useEffect(() => {
             if (eliminatedPlayer && eliminationAudioRef.current) {
+                  // Unmute only exactly when it's time to play
+                  eliminationAudioRef.current.muted = false; 
                   eliminationAudioRef.current.currentTime = 0;
                   eliminationAudioRef.current.play().catch(e => console.log('Elimination audio blocked:', e));
             }
@@ -167,6 +168,8 @@ export default function App() {
 
             if (blindsideWinner) {
                   if (fireworksAudioRef.current) {
+                        // Unmute only exactly when it's time to play
+                        fireworksAudioRef.current.muted = false;
                         fireworksAudioRef.current.currentTime = 0;
                         fireworksAudioRef.current.play().catch(e => console.log('Fireworks audio blocked:', e));
                   }
@@ -287,7 +290,7 @@ export default function App() {
       };
 
       const handleAddTargetTribe = () => {
-            if (targetTribes.length >= 3) return; // Capped at 3!
+            if (targetTribes.length >= 3) return; 
             setTargetTribes([...targetTribes, { id: Date.now().toString(), name: '', color: '#eab308' }]); 
             triggerHaptic();
       };
@@ -663,65 +666,49 @@ export default function App() {
                                           <div>
                                                 <div style={{ color: '#22c55e', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Pro-Tip</div>
                                                 <div style={{ color: '#f8fafc', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                                                      Turn your device volume up during voting! Right after the torch is snuffed, stay glued to your screen for live score tallies and bonus reward reveals.
+                                                      Turn your device volume on. After elimination, stay tuned for any <strong>bonus awards.</strong>
                                                 </div>
                                           </div>
                                     </div>
                               </div>
                         </div>
 
-                        {/* LEADERBOARD */}
-                        <div style={{ background: '#0f172a', padding: '20px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '30px' }}>
-                              <div style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', marginBottom: '15px', letterSpacing: '3px', fontWeight: 'bold' }}>CURRENT STANDINGS</div>
+                        {/* CONDENSED LEADERBOARD (TOP 2 ONLY) */}
+                        <div style={{ background: '#0f172a', padding: '15px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '20px' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', marginBottom: '10px', letterSpacing: '2px', fontWeight: 'bold' }}>TOP PLAYERS</div>
                               
-                              <div className="hide-scrollbar" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     {scores.length > 0 ? (
-                                          (() => {
-                                                const topScore = scores[0].points;
-                                                const isTieForFirst = scores.filter(s => s.points === topScore).length > 1;
-
-                                                return scores.map((s, i) => {
-                                                      // Dynamic rank styling for the Top 3
-                                                      let rankStyle = { color: '#64748b', bg: 'transparent', border: '1px solid #1e293b' };
-                                                      if (i === 0) rankStyle = { color: '#eab308', bg: 'rgba(234, 179, 8, 0.08)', border: '1px solid #eab308' }; // Gold
-                                                      else if (i === 1) rankStyle = { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.08)', border: '1px solid #94a3b8' }; // Silver
-                                                      else if (i === 2) rankStyle = { color: '#b45309', bg: 'rgba(180, 83, 9, 0.08)', border: '1px solid #b45309' }; // Bronze
-
-                                                      return (
-                                                            <div key={i} style={{
-                                                                  display: 'flex',
-                                                                  justifyContent: 'space-between',
-                                                                  alignItems: 'center',
-                                                                  padding: '12px 16px',
-                                                                  borderRadius: '16px',
-                                                                  background: rankStyle.bg,
-                                                                  border: rankStyle.border,
-                                                                  transition: 'transform 0.2s ease'
-                                                            }}>
-                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                                        <span style={{ fontWeight: '900', color: rankStyle.color, fontSize: '1.2rem', width: '25px', textAlign: 'center' }}>
-                                                                              #{i + 1}
-                                                                        </span>
-                                                                        <span style={{ fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center', fontSize: '1.1rem' }}>
-                                                                              {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
-                                                                              {s.username}
-                                                                              {s.streak >= 2 && (
-                                                                                    <span style={{ marginLeft: '10px', fontSize: '0.75rem', color: '#f97316', background: 'rgba(249, 115, 22, 0.15)', padding: '4px 8px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }} title={`Hot Streak: ${s.streak} in a row!`}>
-                                                                                          🔥 {s.streak}
-                                                                                    </span>
-                                                                              )}
-                                                                        </span>
-                                                                  </div>
-                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                        <span style={{ color: s.points >= 0 ? '#22c55e' : '#ef4444', fontWeight: '900', fontSize: '1.3rem' }}>{s.points}</span>
-                                                                        <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'bold', letterSpacing: '1px' }}>PTS</span>
-                                                                  </div>
+                                          scores.slice(0, 2).map((s, i) => {
+                                                const isFirst = i === 0;
+                                                return (
+                                                      <div key={i} style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            padding: '8px 12px',
+                                                            borderRadius: '12px',
+                                                            background: isFirst ? 'rgba(234, 179, 8, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                                                            border: isFirst ? '1px solid #eab308' : '1px solid #94a3b8'
+                                                      }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                  <span style={{ fontWeight: '900', color: isFirst ? '#eab308' : '#94a3b8', fontSize: '0.95rem' }}>
+                                                                        #{i + 1}
+                                                                  </span>
+                                                                  <span style={{ fontWeight: '600', color: '#f8fafc', fontSize: '0.95rem', display: 'flex', alignItems: 'center' }}>
+                                                                        {isFirst && <span style={{ marginRight: '6px' }}>👑</span>}
+                                                                        {s.username}
+                                                                  </span>
                                                             </div>
-                                                      );
-                                                });
-                                          })()
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                  <span style={{ color: '#22c55e', fontWeight: '900', fontSize: '1.1rem' }}>{s.points}</span>
+                                                                  <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 'bold' }}>PTS</span>
+                                                            </div>
+                                                      </div>
+                                                );
+                                          })
                                     ) : (
-                                          <div style={{ textAlign: 'center', fontSize: '0.9rem', color: '#475569', padding: '20px 0' }}>No active players.</div>
+                                          <div style={{ textAlign: 'center', fontSize: '0.8rem', color: '#475569', padding: '10px 0' }}>No active players.</div>
                                     )}
                               </div>
                         </div>
