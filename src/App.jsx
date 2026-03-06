@@ -263,14 +263,11 @@ export default function App() {
             return () => supabase.removeChannel(sub);
       }, [fetchData]);
 
+      
       // --- NEW: Dynamic Tribe Management Functions ---
       const openTribeEditor = () => {
-            const code = window.prompt("Admin Code required to edit tribes:");
-            if (code !== "SURVIVOR50") {
-                  window.alert("Incorrect code. Tribe management locked.");
-                  return;
-            }
-            
+      
+            // Removed the redundant password prompt! Just open the editor directly.
             setTargetTribes([
                   { id: 1, name: '', color: '#ef4444' }, // Red default
                   { id: 2, name: '', color: '#3b82f6' }  // Blue default
