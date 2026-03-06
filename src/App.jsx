@@ -33,16 +33,22 @@ export default function App() {
       const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
       useEffect(() => {
+            // --- FIXED: Audio Mobile Unlock Strategy ---
             const unlockAudio = () => {
                   const fw = fireworksAudioRef.current;
                   const sn = eliminationAudioRef.current;
 
                   if (fw && sn) {
+                        // Temporarily mute to prevent the sound blip on mobile
+                        fw.volume = 0;
+                        sn.volume = 0;
+
                         const playFw = fw.play();
                         if (playFw !== undefined) {
                               playFw.then(() => {
                                     fw.pause();
                                     fw.currentTime = 0;
+                                    fw.volume = 1; // Restore volume
                               }).catch(e => console.log('FW Unlock blocked:', e));
                         }
 
@@ -51,6 +57,7 @@ export default function App() {
                               playSn.then(() => {
                                     sn.pause();
                                     sn.currentTime = 0;
+                                    sn.volume = 1; // Restore volume
                               }).catch(e => console.log('Snuff Unlock blocked:', e));
                         }
                   }
@@ -59,8 +66,9 @@ export default function App() {
                   document.removeEventListener('touchstart', unlockAudio);
             };
 
-            document.addEventListener('click', unlockAudio);
-            document.addEventListener('touchstart', unlockAudio);
+            // Using once: true ensures it only fires a single time
+            document.addEventListener('click', unlockAudio, { once: true });
+            document.addEventListener('touchstart', unlockAudio, { once: true });
 
             return () => {
                   document.removeEventListener('click', unlockAudio);
@@ -249,7 +257,7 @@ export default function App() {
             return () => supabase.removeChannel(sub);
       }, [fetchData]);
 
-      // --- UPGRADED: Dynamic Tribe Management Functions ---
+      // --- Dynamic Tribe Management Functions ---
       const openTribeEditor = () => {
             const uniqueTribesMap = {};
             contestants.filter(c => !c.is_eliminated).forEach(c => {
@@ -414,6 +422,14 @@ export default function App() {
                         }
                         .squish-button:active:not(:disabled) {
                               transform: scale(0.96) !important;
+                        }
+                        /* Hide scrollbar classes for our carousels/lists */
+                        .hide-scrollbar::-webkit-scrollbar {
+                              display: none;
+                        }
+                        .hide-scrollbar {
+                              -ms-overflow-style: none;
+                              scrollbar-width: none;
                         }
                   `}</style>
 
@@ -617,9 +633,10 @@ export default function App() {
                                     CAMP NOTICE BOARD
                               </div>
                               
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: '15px', paddingBottom: '10px', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+                                    
                                     {/* News */}
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #3b82f6' }}>
+                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #3b82f6' }}>
                                           <span style={{ fontSize: '1.4rem' }}>📰</span>
                                           <div>
                                                 <div style={{ color: '#3b82f6', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>News</div>
@@ -630,7 +647,7 @@ export default function App() {
                                     </div>
 
                                     {/* Alert */}
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #ef4444' }}>
+                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #ef4444' }}>
                                           <span style={{ fontSize: '1.4rem' }}>⚠️</span>
                                           <div>
                                                 <div style={{ color: '#ef4444', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Alert</div>
@@ -641,7 +658,7 @@ export default function App() {
                                     </div>
 
                                     {/* Pro-Tip */}
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(34, 197, 94, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #22c55e' }}>
+                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(34, 197, 94, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #22c55e' }}>
                                           <span style={{ fontSize: '1.4rem' }}>💡</span>
                                           <div>
                                                 <div style={{ color: '#22c55e', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Pro-Tip</div>
@@ -656,36 +673,52 @@ export default function App() {
                         {/* LEADERBOARD */}
                         <div style={{ background: '#0f172a', padding: '20px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '30px' }}>
                               <div style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', marginBottom: '15px', letterSpacing: '3px', fontWeight: 'bold' }}>CURRENT STANDINGS</div>
-                              <div className="custom-scrollbar" style={{ maxHeight: '106px', overflowY: 'auto', paddingRight: '10px' }}>
+                              
+                              <div className="hide-scrollbar" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {scores.length > 0 ? (
                                           (() => {
                                                 const topScore = scores[0].points;
                                                 const isTieForFirst = scores.filter(s => s.points === topScore).length > 1;
 
-                                                return scores.map((s, i) => (
-                                                      <div key={i} style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            fontSize: '1.1rem',
-                                                            height: '52px',
-                                                            borderBottom: '1px solid #1e293b'
-                                                      }}>
-                                                            <span style={{ fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center' }}>
-                                                                  {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
-                                                                  {s.username}
-                                                                  {s.streak >= 2 && (
-                                                                        <span style={{ marginLeft: '8px', fontSize: '0.8rem', color: '#f97316', background: 'rgba(249, 115, 22, 0.1)', padding: '2px 6px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '3px' }} title={`Hot Streak: ${s.streak} in a row!`}>
-                                                                              🔥{s.streak}
+                                                return scores.map((s, i) => {
+                                                      // Dynamic rank styling for the Top 3
+                                                      let rankStyle = { color: '#64748b', bg: 'transparent', border: '1px solid #1e293b' };
+                                                      if (i === 0) rankStyle = { color: '#eab308', bg: 'rgba(234, 179, 8, 0.08)', border: '1px solid #eab308' }; // Gold
+                                                      else if (i === 1) rankStyle = { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.08)', border: '1px solid #94a3b8' }; // Silver
+                                                      else if (i === 2) rankStyle = { color: '#b45309', bg: 'rgba(180, 83, 9, 0.08)', border: '1px solid #b45309' }; // Bronze
+
+                                                      return (
+                                                            <div key={i} style={{
+                                                                  display: 'flex',
+                                                                  justifyContent: 'space-between',
+                                                                  alignItems: 'center',
+                                                                  padding: '12px 16px',
+                                                                  borderRadius: '16px',
+                                                                  background: rankStyle.bg,
+                                                                  border: rankStyle.border,
+                                                                  transition: 'transform 0.2s ease'
+                                                            }}>
+                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                                        <span style={{ fontWeight: '900', color: rankStyle.color, fontSize: '1.2rem', width: '25px', textAlign: 'center' }}>
+                                                                              #{i + 1}
                                                                         </span>
-                                                                  )}
-                                                            </span>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                                  <span style={{ color: s.points >= 0 ? '#22c55e' : '#ef4444', fontWeight: '900', fontSize: '1.2rem' }}>{s.points}</span>
-                                                                  <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 'bold' }}>PTS</span>
+                                                                        <span style={{ fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center', fontSize: '1.1rem' }}>
+                                                                              {i === 0 && !isTieForFirst && <span style={{ marginRight: '8px' }}>👑</span>}
+                                                                              {s.username}
+                                                                              {s.streak >= 2 && (
+                                                                                    <span style={{ marginLeft: '10px', fontSize: '0.75rem', color: '#f97316', background: 'rgba(249, 115, 22, 0.15)', padding: '4px 8px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }} title={`Hot Streak: ${s.streak} in a row!`}>
+                                                                                          🔥 {s.streak}
+                                                                                    </span>
+                                                                              )}
+                                                                        </span>
+                                                                  </div>
+                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <span style={{ color: s.points >= 0 ? '#22c55e' : '#ef4444', fontWeight: '900', fontSize: '1.3rem' }}>{s.points}</span>
+                                                                        <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'bold', letterSpacing: '1px' }}>PTS</span>
+                                                                  </div>
                                                             </div>
-                                                      </div>
-                                                ));
+                                                      );
+                                                });
                                           })()
                                     ) : (
                                           <div style={{ textAlign: 'center', fontSize: '0.9rem', color: '#475569', padding: '20px 0' }}>No active players.</div>
