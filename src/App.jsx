@@ -148,20 +148,6 @@ export default function App() {
       }, [timerEndAt]);
 
       useEffect(() => {
-            const fireConfetti = () => {
-                  confetti({
-                        particleCount: 150,
-                        spread: 160,
-                        origin: { y: 0.3 },
-                        zIndex: 10000
-                  });
-            };
-            fireConfetti();
-            const interval = setInterval(fireConfetti, 3000);
-            return () => clearInterval(interval);
-      }, []);
-
-      useEffect(() => {
             if (eliminatedPlayer && eliminationAudioRef.current) {
                   eliminationAudioRef.current.currentTime = 0;
                   eliminationAudioRef.current.play().catch(e => console.log('Elimination audio blocked:', e));
@@ -624,39 +610,47 @@ export default function App() {
                   </div>
 
                   <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 15px' }}>
-                        {/* BIRTHDAY ANNOUNCEMENT BANNER */}
-                        <div style={{
-                              margin: '10px 15px 25px 15px',
-                              padding: '15px 20px',
-                              background: 'rgba(249, 115, 22, 0.15)',
-                              border: '1px solid #f97316',
-                              borderRadius: '16px',
-                              textAlign: 'center',
-                              boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)'
-                        }}>
-                              <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>
-                                    🕯️🎂🎈
+                        
+                        {/* CAMP NOTICE BOARD */}
+                        <div style={{ background: '#0f172a', padding: '20px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '20px' }}>
+                              <div style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', marginBottom: '15px', letterSpacing: '3px', fontWeight: 'bold' }}>
+                                    CAMP NOTICE BOARD
                               </div>
-                              <p style={{
-                                    margin: 0,
-                                    fontSize: '0.9rem',
-                                    color: '#f8fafc',
-                                    lineHeight: '1.5',
-                                    fontWeight: '600',
-                                    letterSpacing: '0.5px'
-                              }}>
-                                    Welcome to our Survivor50! The first vote is live March 4th.<br />
-                                    <span style={{
-                                          color: '#f97316',
-                                          fontWeight: '900',
-                                          fontSize: 'clamp(1rem, 4.5vw, 1.2rem)',
-                                          marginTop: '5px',
-                                          whiteSpace: 'nowrap',
-                                          display: 'inline-block'
-                                    }}>
-                                          🎉 HAPPY BIRTHDAY RAYA! 🎉
-                                    </span>
-                              </p>
+                              
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {/* News */}
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #3b82f6' }}>
+                                          <span style={{ fontSize: '1.4rem' }}>📰</span>
+                                          <div>
+                                                <div style={{ color: '#3b82f6', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>News</div>
+                                                <div style={{ color: '#f8fafc', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                                      Next vote is LIVE during Episode 3 on <strong>Wed, March 11th</strong>!
+                                                </div>
+                                          </div>
+                                    </div>
+
+                                    {/* Alert */}
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #ef4444' }}>
+                                          <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+                                          <div>
+                                                <div style={{ color: '#ef4444', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Alert</div>
+                                                <div style={{ color: '#f8fafc', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                                      Due to mid-show team swaps, <strong>all contestants</strong> will appear in council this week. Select your vote carefully!
+                                                </div>
+                                          </div>
+                                    </div>
+
+                                    {/* Pro-Tip */}
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(34, 197, 94, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #22c55e' }}>
+                                          <span style={{ fontSize: '1.4rem' }}>💡</span>
+                                          <div>
+                                                <div style={{ color: '#22c55e', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Pro-Tip</div>
+                                                <div style={{ color: '#f8fafc', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                                      Turn your device volume up during voting! Right after the torch is snuffed, stay glued to your screen for live score tallies and bonus reward reveals.
+                                                </div>
+                                          </div>
+                                    </div>
+                              </div>
                         </div>
 
                         {/* LEADERBOARD */}
@@ -783,17 +777,17 @@ export default function App() {
                                                 <div key={c.id} style={{ position: 'relative' }}>
                                                       {isAdmin && (
                                                             <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 10, padding: '0 5px' }}>
-                                                                  <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0 }}>✕</button>
-                                                                  <div style={{ display: 'flex', gap: '5px' }}>
-                                                                        <button
-                                                                              onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }}
-                                                                              style={{ background: c.is_immune ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                                              title="Play Hidden Immunity"
-                                                                        >
-                                                                              🗿
-                                                                        </button>
-                                                                        <button onClick={async () => { await supabase.from('contestants').update({ is_at_risk: false }).eq('id', c.id); fetchData(); }} style={{ background: '#eab308', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛡️</button>
-                                                                  </div>
+                                                                  {/* SNUFF TORCH */}
+                                                                  <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Snuff Torch">✕</button>
+                                                                  
+                                                                  {/* MAKE IMMUNE */}
+                                                                  <button
+                                                                        onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }}
+                                                                        style={{ background: c.is_immune ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                        title="Play Immunity / Make Immune"
+                                                                  >
+                                                                        🛡️
+                                                                  </button>
                                                             </div>
                                                       )}
                                                       <button
@@ -813,11 +807,26 @@ export default function App() {
                                                                   position: 'relative'
                                                             }}
                                                       >
+                                                            {/* IMMUNITY BADGE */}
                                                             {c.is_immune && (
-                                                                  <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#eab308', color: 'black', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '900', zIndex: 20 }}>
+                                                                  <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(234, 179, 8, 0.9)', color: 'black', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '900', zIndex: 20 }}>
                                                                         🛡️ IMMUNE
                                                                   </div>
                                                             )}
+
+                                                            {/* IDOL GRAPHIC */}
+                                                            {c.has_idol && (
+                                                                  <div style={{ 
+                                                                        position: 'absolute', top: '10px', right: '10px', width: '36px', height: '36px', 
+                                                                        background: 'linear-gradient(135deg, #f59e0b, #92400e)', border: '2px solid #fde047', 
+                                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.6), 0 0 15px rgba(245, 158, 11, 0.8)', 
+                                                                        zIndex: 20, fontSize: '1.1rem' 
+                                                                  }} title="Holds a Hidden Immunity Idol">
+                                                                        🗿
+                                                                  </div>
+                                                            )}
+
                                                             <img src={c.image_url} alt={c.name} style={{ width: '100%', height: '220px', objectFit: 'cover', objectPosition: 'top' }} />
                                                             <div style={{ padding: '15px', background: 'linear-gradient(to bottom, #1e1b4b, #0f172a)' }}>
                                                                   <div style={{ fontWeight: '900', color: c.is_immune ? '#eab308' : 'white' }}>{c.name.toUpperCase()}</div>
@@ -827,18 +836,32 @@ export default function App() {
                                           ))}
                                     </div>
 
+                                    {/* COUNCIL RESET BUTTONS */}
                                     {isAdmin && (
-                                          <button
-                                                className="squish-button"
-                                                onClick={async () => {
-                                                      setContestants(contestants.map(p => ({ ...p, is_at_risk: false, is_immune: false })));
-                                                      await supabase.from('contestants').update({ is_at_risk: false, is_immune: false }).eq('is_eliminated', false);
-                                                      await supabase.from('game_settings').update({ timer_end_at: null }).neq('id', -1);
-                                                }}
-                                                style={{ width: '100%', marginTop: '30px', background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '12px', borderRadius: '12px', cursor: 'pointer' }}
-                                          >
-                                                RETURN ALL TO CAMP
-                                          </button>
+                                          <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
+                                                <button
+                                                      className="squish-button"
+                                                      onClick={async () => {
+                                                            setContestants(contestants.map(p => ({ ...p, is_at_risk: false, is_immune: false })));
+                                                            await supabase.from('contestants').update({ is_at_risk: false, is_immune: false }).eq('is_eliminated', false);
+                                                            await supabase.from('game_settings').update({ timer_end_at: null }).neq('id', -1);
+                                                      }}
+                                                      style={{ flex: 1, background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                      RETURN ALL TO CAMP
+                                                </button>
+                                                <button
+                                                      className="squish-button"
+                                                      onClick={async () => {
+                                                            // Sends every active player to Tribal Council
+                                                            setContestants(contestants.map(p => (!p.is_eliminated ? { ...p, is_at_risk: true } : p)));
+                                                            await supabase.from('contestants').update({ is_at_risk: true }).eq('is_eliminated', false);
+                                                      }}
+                                                      style={{ flex: 1, background: '#ef4444', border: 'none', color: 'white', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                      PULL EVERYONE TO COUNCIL
+                                                </button>
+                                          </div>
                                     )}
                               </div>
                         ) : (
@@ -862,22 +885,36 @@ export default function App() {
                                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '15px' }}>
                                                 {members.map(c => (
                                                       <div key={c.id} style={{ position: 'relative' }}>
+                                                            {/* CAMP ADMIN TOGGLES */}
                                                             {isAdmin && (
-                                                                  <div style={{ position: 'absolute', top: '-8px', right: '5px', zIndex: 10, display: 'flex', gap: '4px' }}>
-                                                                        <button
-                                                                              onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }}
-                                                                              style={{ background: '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >🏆</button>
-                                                                        <button onClick={async () => { await supabase.from('contestants').update({ is_at_risk: true }).eq('id', c.id); fetchData(); }} style={{ background: '#eab308', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}>🔥</button>
+                                                                  <div style={{ position: 'absolute', top: '-8px', right: '5px', zIndex: 30, display: 'flex', gap: '4px' }}>
+                                                                        <button onClick={async () => { await supabase.from('contestants').update({ has_idol: !c.has_idol }).eq('id', c.id); fetchData(); }} style={{ background: c.has_idol ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Give/Take Hidden Idol">🗿</button>
+                                                                        <button onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }} style={{ background: '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Toggle Individual Immunity">🏆</button>
+                                                                        <button onClick={async () => { await supabase.from('contestants').update({ is_at_risk: true }).eq('id', c.id); fetchData(); }} style={{ background: '#eab308', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Send to Tribal Council">🔥</button>
                                                                   </div>
                                                             )}
 
+                                                            {/* IMMUNITY BADGE */}
                                                             {c.is_immune && (
-                                                                  <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 5, background: 'rgba(234, 179, 8, 0.9)', color: 'black', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '900', boxShadow: '0 0 10px #eab308' }}>
+                                                                  <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 20, background: 'rgba(234, 179, 8, 0.9)', color: 'black', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: '900', boxShadow: '0 0 10px #eab308' }}>
                                                                         🛡️ IMMUNE
                                                                   </div>
                                                             )}
 
+                                                            {/* IDOL GRAPHIC */}
+                                                            {c.has_idol && (
+                                                                  <div style={{ 
+                                                                        position: 'absolute', top: '10px', right: '10px', width: '36px', height: '36px', 
+                                                                        background: 'linear-gradient(135deg, #f59e0b, #92400e)', border: '2px solid #fde047', 
+                                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.6), 0 0 15px rgba(245, 158, 11, 0.8)', 
+                                                                        zIndex: 20, fontSize: '1.1rem' 
+                                                                  }} title="Holds a Hidden Immunity Idol">
+                                                                        🗿
+                                                                  </div>
+                                                            )}
+
+                                                            {/* PLAYER CARD */}
                                                             <div style={{ borderRadius: '20px', overflow: 'hidden', background: '#0f172a', border: c.is_immune ? '2px solid #eab308' : '1px solid #1e293b', opacity: 0.8 }}>
                                                                   <img src={c.image_url} alt={c.name} style={{ width: '100%', height: '180px', objectFit: 'cover', objectPosition: 'top' }} />
                                                                   <div style={{ padding: '12px', textAlign: 'center', fontWeight: c.is_immune ? '900' : '400', color: c.is_immune ? '#eab308' : 'white' }}>{c.name.toUpperCase()}</div>
