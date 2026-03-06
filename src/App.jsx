@@ -208,6 +208,8 @@ export default function App() {
       useEffect(() => {
             fetchData();
             const sub = supabase.channel('master-room')
+                  
+                  // 1. Listen for ALL Game Settings changes (Timer, Pause, Week changes)
                   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_settings' }, (payload) => {
                         if (payload.new.timer_end_at && payload.new.timer_end_at !== payload.old?.timer_end_at) {
                               setShowTimeAdded(true);
@@ -215,9 +217,12 @@ export default function App() {
                         }
                         setTimerEndAt(payload.new.timer_end_at);
                         setIsMaintenanceMode(payload.new.is_maintenance_mode);
-                        fetchData();
+                        fetchData(); // Syncs screen for everyone instantly
                   })
+                  
+                  // 2. Listen for ALL Contestant changes (Immunity, Idols, Eliminations, Tribes, Council Status)
                   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contestants' }, async (payload) => {
+                        // Handle the special elimination animations
                         if (payload.new.is_eliminated && !payload.old.is_eliminated) {
                               setEliminatedPlayer(payload.new.name);
 
@@ -251,10 +256,19 @@ export default function App() {
 
                               setTimeout(() => setEliminatedPlayer(null), 5000);
                         }
-                        fetchData();
+                        
+                        // Guarantee ANY contestant change (like Immune toggles) updates everyone's screen!
+                        fetchData(); 
                   })
-                  .on('postgres_changes', { event: '*', schema: 'public' }, () => fetchData())
+                  
+                  // 3. Listen for ALL Leaderboard Score changes
+                  .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchData())
+                  
+                  // 4. Listen for ALL new Votes (Updates admin counter)
+                  .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, () => fetchData())
+                  
                   .subscribe();
+            
             return () => supabase.removeChannel(sub);
       }, [fetchData]);
 
