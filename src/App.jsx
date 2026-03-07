@@ -455,22 +455,39 @@ export default function App() {
 
       // --- FIXED: Overtime Pulse & Audio Effect ---
       useEffect(() => {
-            let timeout;
-            let interval;
+            let reqFrame;
+            let lastHapticPhase = 0; // Tracks which wave we are in (0=none, 1=wave1, 2=wave2)
 
             if (isOvertime) {
                   if (purgeAudioRef.current) {
                         purgeAudioRef.current.loop = true;
+                        purgeAudioRef.current.currentTime = 0; // Start fresh
                         purgeAudioRef.current.play().catch(e => console.log('Purge audio blocked:', e));
                   }
 
-                  // Fixed the cleanup so it prevents infinite orphan loops
-                  timeout = setTimeout(() => {
-                        if (!isHardLocked) triggerHaptic();
-                        interval = setInterval(() => {
+                  // Tightly sync haptics to the audio's current time
+                  const checkSync = () => {
+                        if (!purgeAudioRef.current) return;
+                        const time = purgeAudioRef.current.currentTime;
+                        let currentPhase = 0;
+
+                        // Check if we are inside Wave 1 or Wave 2 based on your timestamps
+                        if (time >= 0.13 && time <= 2.547) {
+                              currentPhase = 1;
+                        } else if (time >= 3.12 && time <= 6.0) {
+                              currentPhase = 2;
+                        }
+
+                        // If we just entered a new wave, trigger the haptic hit
+                        if (currentPhase !== 0 && currentPhase !== lastHapticPhase && !isHardLocked) {
                               triggerHaptic();
-                        }, 3000);
-                  }, 1000);
+                        }
+
+                        lastHapticPhase = currentPhase;
+                        reqFrame = requestAnimationFrame(checkSync);
+                  };
+
+                  reqFrame = requestAnimationFrame(checkSync);
             } else {
                   if (purgeAudioRef.current) {
                         purgeAudioRef.current.pause();
@@ -479,8 +496,7 @@ export default function App() {
             }
 
             return () => {
-                  clearTimeout(timeout);
-                  clearInterval(interval);
+                  if (reqFrame) cancelAnimationFrame(reqFrame);
             };
       }, [isOvertime, isHardLocked]);
 
@@ -537,17 +553,26 @@ export default function App() {
                         }
 
                         @keyframes purgeFlash {
-                              0% { background-color: rgba(239, 68, 68, 0); }
-                              33% { background-color: rgba(239, 68, 68, 0.4); } 
-                              100% { background-color: rgba(239, 68, 68, 0); }
+                              /* 0% to 2.16% (0s to ~0.13s) - Wait for first alarm */
+                              0%, 2.15% { background-color: rgba(239, 68, 68, 0); } 
+                              /* 2.16% (0.13s) - First alarm hits, flash red! */
+                              2.16%, 15% { background-color: rgba(239, 68, 68, 0.4); } 
+                              /* Fade out by 42.45% (2.547s) */
+                              42.45% { background-color: rgba(239, 68, 68, 0); } 
+                              /* Stay dark until 52% (3.12s) */
+                              42.46%, 51.99% { background-color: rgba(239, 68, 68, 0); } 
+                              /* 52% (3.12s) - Second alarm hits, flash red! */
+                              52%, 65% { background-color: rgba(239, 68, 68, 0.4); } 
+                              /* Fade out by the end of the 6.0s track */
+                              100% { background-color: rgba(239, 68, 68, 0); } 
                         }
                         .overtime-overlay {
                               position: fixed;
                               inset: 0;
                               pointer-events: none;
                               z-index: 9998;
-                              animation: purgeFlash 3s infinite;
-                              animation-delay: 1s;
+                              /* Run linearly for exactly 6 seconds to match the audio length perfectly */
+                              animation: purgeFlash 6s linear infinite; 
                         }
 
                         @keyframes slamDrop {
