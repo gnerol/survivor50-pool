@@ -875,17 +875,19 @@ export default function App() {
 
                   {/* Apply flex and centering if isImmersiveMode is true */}
                   <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
+                        display: 'block', /* CHANGED: Removed flexbox to prevent vertical scrolling bugs */
                         minHeight: isImmersiveMode ? '100dvh' : 'auto',
-                        padding: isImmersiveMode ? '0 15px 120px 15px' : '0 15px' // adjusted padding so sticky header touches the top
+                        padding: isImmersiveMode ? '0 15px 120px 15px' : '0 15px',
+                        overflow: 'visible' /* CHANGED: Explicitly allow overflow for sticky */
                   }}>
                         <div style={{
-                              margin: isImmersiveMode ? 'auto' : '0 auto',
+                              margin: '0 auto', /* CHANGED: Removed the 'auto' toggle that was breaking the bounding box */
                               width: '100%',
                               maxWidth: '1200px',
                               textAlign: 'center',
-                              marginBottom: isImmersiveMode ? 'auto' : '40px'
+                              marginBottom: '40px',
+                              overflow: 'visible' /* CHANGED: Explicitly allow overflow for sticky */
+
                         }}>
                               {isVotingPhase ? (
                                     <>
