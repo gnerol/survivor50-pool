@@ -21,11 +21,12 @@ export default function App() {
       const [showTimeAdded, setShowTimeAdded] = useState(false);
       const timerRef = useRef(null);
 
-      // --- NEW: Overtime and Hard Lock States ---
+      // --- Overtime and Hard Lock States ---
       const [isHardLocked, setIsHardLocked] = useState(false);
       const [showSlamOverlay, setShowSlamOverlay] = useState(false);
       const purgeAudioRef = useRef(null);
       const slamAudioRef = useRef(null);
+      const prevHardLocked = useRef(false); // NEW: Track previous lock state
 
       // --- Tribe Management State ---
       const [showTribeEditor, setShowTribeEditor] = useState(false);
@@ -49,8 +50,8 @@ export default function App() {
             const unlockAudio = () => {
                   const fw = fireworksAudioRef.current;
                   const sn = eliminationAudioRef.current;
-                  const pu = purgeAudioRef.current; // NEW
-                  const sl = slamAudioRef.current;  // NEW
+                  const pu = purgeAudioRef.current;
+                  const sl = slamAudioRef.current;
 
                   const audios = [fw, sn, pu, sl].filter(Boolean);
 
@@ -120,7 +121,7 @@ export default function App() {
                   setCurrentWeek(g.current_week || 2);
                   setTimerEndAt(g.timer_end_at);
                   setIsMaintenanceMode(g.is_maintenance_mode || false);
-                  setIsHardLocked(g.is_hard_locked || false); // --- NEW ---
+                  setIsHardLocked(g.is_hard_locked || false);
             }
 
             const activeWeek = g?.current_week || currentWeek;
@@ -215,19 +216,11 @@ export default function App() {
                               setTimeout(() => setShowTimeAdded(false), 3000);
                         }
 
-                        // --- NEW: Handle live Hard Lock triggers for Slam Animation ---
-                        if (payload.new.is_hard_locked === true && payload.old?.is_hard_locked === false) {
-                              if (slamAudioRef.current) {
-                                    slamAudioRef.current.currentTime = 0;
-                                    slamAudioRef.current.play().catch(e => console.log('Slam blocked:', e));
-                              }
-                              setShowSlamOverlay(true);
-                              setTimeout(() => setShowSlamOverlay(false), 3000);
-                        }
+                        // REMOVED buggy Supabase hard lock logic here. Moved to a dedicated React useEffect below!
 
                         setTimerEndAt(payload.new.timer_end_at);
                         setIsMaintenanceMode(payload.new.is_maintenance_mode);
-                        setIsHardLocked(payload.new.is_hard_locked); // --- NEW ---
+                        setIsHardLocked(payload.new.is_hard_locked);
                         fetchData();
                   })
                   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contestants' }, async (payload) => {
@@ -271,6 +264,20 @@ export default function App() {
 
             return () => supabase.removeChannel(sub);
       }, [fetchData]);
+
+      // --- NEW: Rock Solid Slam Animation Logic ---
+      useEffect(() => {
+            if (isHardLocked && !prevHardLocked.current) {
+                  // It just switched to locked!
+                  if (slamAudioRef.current) {
+                        slamAudioRef.current.currentTime = 0;
+                        slamAudioRef.current.play().catch(e => console.log('Slam blocked:', e));
+                  }
+                  setShowSlamOverlay(true);
+                  setTimeout(() => setShowSlamOverlay(false), 3000);
+            }
+            prevHardLocked.current = isHardLocked;
+      }, [isHardLocked]);
 
       // --- Drag-to-Scroll Mouse Handlers ---
       const handleMouseDown = (e) => {
@@ -437,34 +444,44 @@ export default function App() {
             fetchData();
       };
 
-      // --- NEW: Overtime Logic ---
+      // --- FIXED: Overtime Logic ---
       const atRiskLegends = contestants.filter(c => c.is_at_risk && !c.is_eliminated);
       const isVotingPhase = atRiskLegends.length > 0;
-      const isTimerExpired = timerEndAt ? new Date(timerEndAt).getTime() <= Date.now() : false;
 
-      const isOvertime = isTimerExpired && !isHardLocked && timerEndAt !== null;
-      const isVotingLocked = isHardLocked; // Only actually locked when Admin slams it
+      // Using secondsLeft to determine expiration ensures perfect sync with your UI timer!
+      const isTimerExpired = timerEndAt !== null && secondsLeft === 0;
+      const isOvertime = isTimerExpired && !isHardLocked;
+      const isVotingLocked = isHardLocked;
 
-      // --- NEW: Overtime Pulse & Audio Effect ---
+      // --- FIXED: Overtime Pulse & Audio Effect ---
       useEffect(() => {
+            let timeout;
             let interval;
-            if (isOvertime && purgeAudioRef.current) {
-                  purgeAudioRef.current.loop = true;
-                  purgeAudioRef.current.play().catch(e => console.log('Purge audio blocked:', e));
 
-                  // 1 second initial delay for haptic sync, then every 3 seconds
-                  setTimeout(() => {
+            if (isOvertime) {
+                  if (purgeAudioRef.current) {
+                        purgeAudioRef.current.loop = true;
+                        purgeAudioRef.current.play().catch(e => console.log('Purge audio blocked:', e));
+                  }
+
+                  // Fixed the cleanup so it prevents infinite orphan loops
+                  timeout = setTimeout(() => {
                         if (!isHardLocked) triggerHaptic();
                         interval = setInterval(() => {
                               triggerHaptic();
                         }, 3000);
                   }, 1000);
-            } else if (!isOvertime && purgeAudioRef.current) {
-                  purgeAudioRef.current.pause();
-                  purgeAudioRef.current.currentTime = 0;
+            } else {
+                  if (purgeAudioRef.current) {
+                        purgeAudioRef.current.pause();
+                        purgeAudioRef.current.currentTime = 0;
+                  }
             }
 
-            return () => clearInterval(interval);
+            return () => {
+                  clearTimeout(timeout);
+                  clearInterval(interval);
+            };
       }, [isOvertime, isHardLocked]);
 
       const tribes = contestants.filter(c => !c.is_eliminated).reduce((acc, c) => {
@@ -480,7 +497,6 @@ export default function App() {
 
                   <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" style={{ display: 'none' }} />
                   <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" style={{ display: 'none' }} />
-                  {/* --- NEW AUDIO FILES --- */}
                   <audio ref={purgeAudioRef} src="/purge.mp3" preload="auto" style={{ display: 'none' }} />
                   <audio ref={slamAudioRef} src="/slam.mp3" preload="auto" style={{ display: 'none' }} />
 
@@ -520,7 +536,6 @@ export default function App() {
                               background: linear-gradient(90deg, #fde047, #f97316); 
                         }
 
-                        /* --- NEW: Overtime & Slam Animations --- */
                         @keyframes purgeFlash {
                               0% { background-color: rgba(239, 68, 68, 0); }
                               33% { background-color: rgba(239, 68, 68, 0.4); } 
@@ -532,7 +547,7 @@ export default function App() {
                               pointer-events: none;
                               z-index: 9998;
                               animation: purgeFlash 3s infinite;
-                              animation-delay: 1s; /* Syncs with your audio delay */
+                              animation-delay: 1s;
                         }
 
                         @keyframes slamDrop {
@@ -555,10 +570,8 @@ export default function App() {
                         }
                   `}</style>
 
-                  {/* --- NEW: Overtime Red Flash Overlay --- */}
                   {isOvertime && <div className="overtime-overlay"></div>}
 
-                  {/* --- NEW: Slam Closed Overlay --- */}
                   {showSlamOverlay && (
                         <div className="slam-overlay">
                               <h1 style={{ color: '#ef4444', fontSize: 'clamp(3rem, 10vw, 6rem)', fontWeight: '900', textShadow: '0 0 40px rgba(239, 68, 68, 0.8)', margin: 0, lineHeight: '1' }}>
@@ -757,8 +770,6 @@ export default function App() {
 
                         {isAdmin && (
                               <div style={{ border: '2px solid #ef4444', padding: '15px', borderRadius: '20px', marginBottom: '30px', background: 'rgba(239, 68, 68, 0.1)' }}>
-
-                                    {/* --- NEW: ADMIN HARD LOCK BUTTON --- */}
                                     <button
                                           className="squish-button"
                                           disabled={isHardLocked}
@@ -787,7 +798,6 @@ export default function App() {
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                           <button className="squish-button" onClick={openTribeEditor} style={{ flex: 1, padding: '14px', background: '#3b82f6', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '12px', cursor: 'pointer' }}>🛠️ MANAGE TRIBES</button>
                                           <button className="squish-button" onClick={async () => {
-                                                // --- NEW: Reset Hard Lock flag here too ---
                                                 await supabase.from('game_settings').update({ current_week: currentWeek + 1, timer_end_at: null, is_hard_locked: false }).neq('id', -1);
                                                 await supabase.from('contestants').update({ is_at_risk: false, is_immune: false }).eq('is_eliminated', false); fetchData();
                                           }} style={{ flex: 1, padding: '14px', background: '#22c55e', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '12px', cursor: 'pointer' }}>
@@ -802,7 +812,6 @@ export default function App() {
                                     <div style={{ marginBottom: '25px' }}>
                                           <h2 style={{ fontSize: '1.4rem', color: '#ef4444', margin: 0, letterSpacing: '3px', fontWeight: '900' }}>🔥 TRIBAL COUNCIL 🔥</h2>
 
-                                          {/* --- NEW: Overtime Message Logic --- */}
                                           {isOvertime ? (
                                                 <div style={{ color: '#ef4444', fontSize: '1.2rem', fontWeight: '900', margin: '15px 0', letterSpacing: '1px', animation: 'pulse 1s infinite' }}>
                                                       ⚠️ SELF DESTRUCT INITIATED - CLOSING ANY SECOND! ⚠️
@@ -872,7 +881,6 @@ export default function App() {
                                                 <button className="squish-button" onClick={async () => {
                                                       setContestants(contestants.map(p => ({ ...p, is_at_risk: false, is_immune: false })));
                                                       await supabase.from('contestants').update({ is_at_risk: false, is_immune: false }).eq('is_eliminated', false);
-                                                      // --- NEW: Reset Hard Lock flag here too ---
                                                       await supabase.from('game_settings').update({ timer_end_at: null, is_hard_locked: false }).neq('id', -1);
                                                 }} style={{ flex: 1, background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
                                                       RETURN ALL TO CAMP
