@@ -517,7 +517,6 @@ export default function App() {
                   <audio ref={purgeAudioRef} src="/purge.mp3" preload="auto" playsInline style={{ display: 'none' }} />
                   <audio ref={slamAudioRef} src="/slam.mp3" preload="auto" playsInline style={{ display: 'none' }} />
 
-
                   <style>{`
                         .squish-button {
                               transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), border 0.3s ease, opacity 0.3s ease !important;
@@ -570,6 +569,39 @@ export default function App() {
                               animation: purgeFlash 6s linear infinite; 
                         }
 
+                        /* NEW: Slow pulsing red vignette when locked */
+                        @keyframes lockedGlow {
+                              0% { box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.15); }
+                              50% { box-shadow: inset 0 0 150px rgba(239, 68, 68, 0.5); }
+                              100% { box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.15); }
+                        }
+                        .locked-glow-overlay {
+                              position: fixed;
+                              inset: 0;
+                              pointer-events: none;
+                              z-index: 9997; /* Just below overtime overlay */
+                              animation: lockedGlow 3s ease-in-out infinite;
+                        }
+
+                        /* NEW: Pulsing text shadow for the locked badge */
+                        @keyframes textPulseGlow {
+                              0% { text-shadow: 0 0 5px rgba(239, 68, 68, 0.5); transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+                              50% { text-shadow: 0 0 20px rgba(239, 68, 68, 1), 0 0 30px rgba(239, 68, 68, 0.8); transform: scale(1.03); box-shadow: 0 0 25px rgba(239,68,68,0.6); }
+                              100% { text-shadow: 0 0 5px rgba(239, 68, 68, 0.5); transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+                        }
+                        .locked-text-glow {
+                              animation: textPulseGlow 2s ease-in-out infinite;
+                        }
+
+                        /* NEW: Contestant card hover effects */
+                        .contestant-card {
+                              transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+                        }
+                        .contestant-card:hover:not(:disabled) {
+                              transform: translateY(-5px) scale(1.02) !important;
+                              box-shadow: 0 15px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(249, 115, 22, 0.4);
+                        }
+
                         @keyframes slamDrop {
                               0% { transform: scale(3); opacity: 0; }
                               20% { transform: scale(1); opacity: 1; }
@@ -591,6 +623,7 @@ export default function App() {
                   `}</style>
 
                   {isOvertime && <div className="overtime-overlay"></div>}
+                  {isVotingLocked && <div className="locked-glow-overlay"></div>}
 
                   {showSlamOverlay && (
                         <div className="slam-overlay">
@@ -839,10 +872,10 @@ export default function App() {
                         display: 'flex',
                         flexDirection: 'column',
                         minHeight: isImmersiveMode ? '100dvh' : 'auto',
-                        padding: isImmersiveMode ? '40px 15px 120px 15px' : '0' // bottom padding protects content from the floating vote button
+                        padding: isImmersiveMode ? '0 15px 120px 15px' : '0 15px' // adjusted padding so sticky header touches the top
                   }}>
                         <div style={{
-                              margin: isImmersiveMode ? 'auto' : '0 auto', // auto perfectly vertically and horizontally centers without clipping
+                              margin: isImmersiveMode ? 'auto' : '0 auto',
                               width: '100%',
                               maxWidth: '1200px',
                               textAlign: 'center',
@@ -850,7 +883,17 @@ export default function App() {
                         }}>
                               {isVotingPhase ? (
                                     <>
-                                          <div style={{ marginBottom: '25px' }}>
+                                          <div style={{
+                                                position: 'sticky',
+                                                top: 0,
+                                                zIndex: 40,
+                                                background: 'rgba(2, 6, 23, 0.90)',
+                                                backdropFilter: 'blur(10px)',
+                                                WebkitBackdropFilter: 'blur(10px)', /* For Safari support */
+                                                padding: '20px 0',
+                                                marginBottom: '25px',
+                                                borderBottom: '1px solid rgba(30, 41, 59, 0.5)'
+                                          }}>
                                                 <h2 style={{ fontSize: '1.4rem', color: '#ef4444', margin: 0, letterSpacing: '3px', fontWeight: '900' }}>🔥 TRIBAL COUNCIL 🔥</h2>
 
                                                 {isOvertime ? (
@@ -862,12 +905,13 @@ export default function App() {
                                                             {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
                                                       </div>
                                                 ) : isVotingLocked ? (
-                                                      <div style={{ background: '#ef4444', color: 'white', display: 'inline-block', padding: '5px 20px', borderRadius: '8px', fontWeight: 'bold', margin: '15px 0', letterSpacing: '1px' }}>
+                                                      /* NEW: Applied the locked-text-glow animation here */
+                                                      <div className="locked-text-glow" style={{ background: '#ef4444', color: 'white', display: 'inline-block', padding: '8px 25px', borderRadius: '12px', fontWeight: '900', margin: '15px 0', letterSpacing: '2px', border: '2px solid #7f1d1d' }}>
                                                             VOTING LOCKED - AWAITING REVEAL
                                                       </div>
                                                 ) : null}
 
-                                                <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                                                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '0' }}>
                                                       {isOvertime ? "Make a run for it! The window is slamming shut!" : secondsLeft > 0 ? "The voting window is closing..." : isVotingLocked ? "All votes are in. The tribe has spoken." : "Cast your vote for the reveal!"}
                                                 </p>
                                           </div>
@@ -876,13 +920,14 @@ export default function App() {
                                                 {atRiskLegends.map(c => (
                                                       <div key={c.id} style={{ position: 'relative' }}>
                                                             {isAdmin && (
-                                                                  <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 10, padding: '0 5px' }}>
+                                                                  <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 30, padding: '0 5px' }}>
                                                                         <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Snuff Torch">✕</button>
                                                                         <button onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }} style={{ background: c.is_immune ? '#eab308' : '#1e293b', border: '2px solid #eab308', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Play Immunity / Make Immune">🛡️</button>
                                                                   </div>
                                                             )}
                                                             <button
-                                                                  className="squish-button"
+                                                                  /* NEW: Added contestant-card class here */
+                                                                  className="squish-button contestant-card"
                                                                   disabled={(isVotingLocked && !isAdmin) || c.is_immune || hasVoted}
                                                                   onClick={() => {
                                                                         if (!hasVoted && !c.is_immune) {
@@ -895,7 +940,8 @@ export default function App() {
                                                                         border: c.is_immune ? '4px solid #eab308' : (selectedCandidate?.id === c.id ? '4px solid #f97316' : '2px solid #ef4444'),
                                                                         opacity: (isVotingLocked && !isAdmin) || c.is_immune ? 0.6 : 1,
                                                                         cursor: (isVotingLocked && !isAdmin) || c.is_immune || hasVoted ? 'not-allowed' : 'pointer',
-                                                                        position: 'relative'
+                                                                        position: 'relative',
+                                                                        zIndex: 20
                                                                   }}
                                                             >
                                                                   {c.is_immune && (
