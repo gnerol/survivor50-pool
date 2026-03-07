@@ -456,12 +456,16 @@ export default function App() {
       // --- FIXED: Overtime Pulse & Audio Effect ---
       useEffect(() => {
             let reqFrame;
-            let lastHapticPhase = 0; // Tracks which wave we are in (0=none, 1=wave1, 2=wave2)
+            let lastHapticPhase = 0;
 
             if (isOvertime) {
                   if (purgeAudioRef.current) {
                         purgeAudioRef.current.loop = true;
-                        purgeAudioRef.current.currentTime = 0; // Start fresh
+                        // NEW: Force the browser to unmute and max the volume
+                        purgeAudioRef.current.muted = false;
+                        purgeAudioRef.current.volume = 1.0;
+
+                        purgeAudioRef.current.currentTime = 0;
                         purgeAudioRef.current.play().catch(e => console.log('Purge audio blocked:', e));
                   }
 
@@ -471,14 +475,12 @@ export default function App() {
                         const time = purgeAudioRef.current.currentTime;
                         let currentPhase = 0;
 
-                        // Check if we are inside Wave 1 or Wave 2 based on your timestamps
                         if (time >= 0.13 && time <= 2.547) {
                               currentPhase = 1;
                         } else if (time >= 3.12 && time <= 6.0) {
                               currentPhase = 2;
                         }
 
-                        // If we just entered a new wave, trigger the haptic hit
                         if (currentPhase !== 0 && currentPhase !== lastHapticPhase && !isHardLocked) {
                               triggerHaptic();
                         }
@@ -511,10 +513,11 @@ export default function App() {
       return (
             <div style={{ backgroundColor: '#020617', color: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', overflowX: 'hidden', paddingBottom: '180px' }}>
 
-                  <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" style={{ display: 'none' }} />
-                  <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" style={{ display: 'none' }} />
-                  <audio ref={purgeAudioRef} src="/purge.mp3" preload="auto" style={{ display: 'none' }} />
-                  <audio ref={slamAudioRef} src="/slam.mp3" preload="auto" style={{ display: 'none' }} />
+                  <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" playsInline style={{ display: 'none' }} />
+                  <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" playsInline style={{ display: 'none' }} />
+                  <audio ref={purgeAudioRef} src="/purge.mp3" preload="auto" playsInline style={{ display: 'none' }} />
+                  <audio ref={slamAudioRef} src="/slam.mp3" preload="auto" playsInline style={{ display: 'none' }} />
+
 
                   <style>{`
                         .squish-button {
