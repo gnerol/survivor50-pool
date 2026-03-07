@@ -482,10 +482,17 @@ export default function App() {
                               currentPhase = 2;
                         }
 
+                        // If we just entered a new wave, trigger the haptic hit
                         if (currentPhase !== 0 && currentPhase !== lastHapticPhase && !isHardLocked) {
-                              triggerHaptic([500, 100, 500, 100, 500]);
+                              // Trigger a massive, continuous vibration matched exactly to the wave duration
+                              if (currentPhase === 1) {
+                                    // Wave 1: 0.13s to 2.547s (Duration: ~2417ms)
+                                    triggerHaptic(2417);
+                              } else if (currentPhase === 2) {
+                                    // Wave 2: 3.12s to 6.0s (Duration: ~2880ms)
+                                    triggerHaptic(2880);
+                              }
                         }
-
                         lastHapticPhase = currentPhase;
                         reqFrame = requestAnimationFrame(checkSync);
                   };
