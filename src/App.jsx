@@ -510,7 +510,7 @@ export default function App() {
       const graveyard = contestants.filter(c => c.is_eliminated);
 
       return (
-            <div style={{ backgroundColor: '#020617', color: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', overflowX: 'clip', paddingBottom: isImmersiveMode ? '0px' : '180px' }}>
+            <div style={{ backgroundColor: '#020617', color: 'white', minHeight: '100vh', width: '100%', boxSizing: 'border-box', paddingBottom: isImmersiveMode ? '0px' : '180px' }}>
 
                   <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" playsInline style={{ display: 'none' }} />
                   <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" playsInline style={{ display: 'none' }} />
@@ -518,6 +518,12 @@ export default function App() {
                   <audio ref={slamAudioRef} src="/slam.mp3" preload="auto" playsInline style={{ display: 'none' }} />
 
                   <style>{`
+                        body {
+                        overflow-x: hidden;
+                        margin: 0;
+                        padding: 0;
+                        }     
+
                         .squish-button {
                               transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), border 0.3s ease, opacity 0.3s ease !important;
                         }
