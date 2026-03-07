@@ -23,7 +23,7 @@ export default function App() {
 
       // --- Tribe Management State ---
       const [showTribeEditor, setShowTribeEditor] = useState(false);
-      const [targetTribes, setTargetTribes] = useState([]); 
+      const [targetTribes, setTargetTribes] = useState([]);
       const [playerAssignments, setPlayerAssignments] = useState({});
 
       const fireworksAudioRef = useRef(null);
@@ -31,6 +31,12 @@ export default function App() {
 
       // -- Maintenance mode overlay ---
       const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+
+      // --- NEW: Drag-to-Scroll Refs ---
+      const scrollContainerRef = useRef(null);
+      const isDragging = useRef(false);
+      const startX = useRef(0);
+      const scrollLeft = useRef(0);
 
       useEffect(() => {
             // --- BULLETPROOF iOS AUDIO UNLOCK ---
@@ -138,7 +144,7 @@ export default function App() {
 
       useEffect(() => {
             if (timerRef.current) clearInterval(timerRef.current);
-            
+
             const updateTimer = () => {
                   if (!timerEndAt) {
                         setSecondsLeft(0);
@@ -150,9 +156,9 @@ export default function App() {
                   setSecondsLeft(diff);
             };
 
-            updateTimer(); 
+            updateTimer();
             timerRef.current = setInterval(updateTimer, 1000);
-            
+
             return () => clearInterval(timerRef.current);
       }, [timerEndAt]);
 
@@ -208,7 +214,7 @@ export default function App() {
       useEffect(() => {
             fetchData();
             const sub = supabase.channel('master-room')
-                  
+
                   // 1. Listen for ALL Game Settings changes (Timer, Pause, Week changes)
                   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_settings' }, (payload) => {
                         if (payload.new.timer_end_at && payload.new.timer_end_at !== payload.old?.timer_end_at) {
@@ -219,7 +225,7 @@ export default function App() {
                         setIsMaintenanceMode(payload.new.is_maintenance_mode);
                         fetchData(); // Syncs screen for everyone instantly
                   })
-                  
+
                   // 2. Listen for ALL Contestant changes (Immunity, Idols, Eliminations, Tribes, Council Status)
                   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contestants' }, async (payload) => {
                         // Handle the special elimination animations
@@ -256,21 +262,51 @@ export default function App() {
 
                               setTimeout(() => setEliminatedPlayer(null), 5000);
                         }
-                        
+
                         // Guarantee ANY contestant change (like Immune toggles) updates everyone's screen!
-                        fetchData(); 
+                        fetchData();
                   })
-                  
+
                   // 3. Listen for ALL Leaderboard Score changes
                   .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchData())
-                  
+
                   // 4. Listen for ALL new Votes (Updates admin counter)
                   .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, () => fetchData())
-                  
+
                   .subscribe();
-            
+
             return () => supabase.removeChannel(sub);
       }, [fetchData]);
+
+      // --- NEW: Drag-to-Scroll Mouse Handlers ---
+      const handleMouseDown = (e) => {
+            isDragging.current = true;
+            if (scrollContainerRef.current) {
+                  scrollContainerRef.current.style.cursor = 'grabbing';
+                  scrollContainerRef.current.style.scrollSnapType = 'none'; // Temporarily disable snapping to allow smooth drag
+                  startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+                  scrollLeft.current = scrollContainerRef.current.scrollLeft;
+            }
+      };
+
+      const handleMouseLeaveOrUp = () => {
+            isDragging.current = false;
+            if (scrollContainerRef.current) {
+                  scrollContainerRef.current.style.cursor = 'grab';
+                  scrollContainerRef.current.style.scrollSnapType = 'x mandatory'; // Re-enable snapping
+            }
+      };
+
+      const handleMouseMove = (e) => {
+            if (!isDragging.current) return;
+            e.preventDefault();
+            if (scrollContainerRef.current) {
+                  const x = e.pageX - scrollContainerRef.current.offsetLeft;
+                  const walk = (x - startX.current) * 2; // The * 2 makes the scroll slightly faster
+                  scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+            }
+      };
+      // ------------------------------------------
 
       // --- Dynamic Tribe Management Functions ---
       const openTribeEditor = () => {
@@ -302,14 +338,14 @@ export default function App() {
       };
 
       const handleAddTargetTribe = () => {
-            if (targetTribes.length >= 3) return; 
-            setTargetTribes([...targetTribes, { id: Date.now().toString(), name: '', color: '#eab308' }]); 
+            if (targetTribes.length >= 3) return;
+            setTargetTribes([...targetTribes, { id: Date.now().toString(), name: '', color: '#eab308' }]);
             triggerHaptic();
       };
 
       const handleRemoveTargetTribe = (idToRemove) => {
             setTargetTribes(targetTribes.filter(t => t.id !== idToRemove));
-            
+
             const updatedAssignments = { ...playerAssignments };
             Object.keys(updatedAssignments).forEach(playerId => {
                   if (updatedAssignments[playerId] === idToRemove) {
@@ -322,7 +358,7 @@ export default function App() {
 
       const saveTribeUpdates = async () => {
             const unassignedCount = contestants.filter(c => !c.is_eliminated).length - Object.keys(playerAssignments).length;
-            
+
             if (unassignedCount > 0) {
                   if (!window.confirm(`Warning: ${unassignedCount} players have not been assigned a new tribe and will keep their old ones. Continue?`)) return;
             } else {
@@ -332,10 +368,10 @@ export default function App() {
             const promises = Object.entries(playerAssignments).map(([playerId, targetTribeId]) => {
                   const targetTribe = targetTribes.find(t => t.id === targetTribeId);
                   if (!targetTribe || !targetTribe.name) return Promise.resolve();
-                  
-                  return supabase.from('contestants').update({ 
-                        tribe_name: targetTribe.name, 
-                        tribe_color: targetTribe.color 
+
+                  return supabase.from('contestants').update({
+                        tribe_name: targetTribe.name,
+                        tribe_color: targetTribe.color
                   }).eq('id', playerId);
             });
 
@@ -446,8 +482,33 @@ export default function App() {
                               -ms-overflow-style: none;
                               scrollbar-width: none;
                         }
+
+                        /* 🔥 NEW: Survivor Themed Scrollbar 🔥 */
+                        .survivor-scrollbar {
+                              /* Firefox */
+                              scrollbar-width: auto;
+                              scrollbar-color: #f97316 #0f172a;
+                        }
+                        .survivor-scrollbar::-webkit-scrollbar {
+                              height: 14px; /* Thickness of the horizontal scrollbar */
+                              width: 14px;  /* Thickness of the vertical scrollbar */
+                        }
+                        .survivor-scrollbar::-webkit-scrollbar-track {
+                              background: #0f172a; /* Dark slate background matching your cards */
+                              border-radius: 10px;
+                              border: 2px solid #1e293b; /* Subtle border */
+                        }
+                        .survivor-scrollbar::-webkit-scrollbar-thumb {
+                              background: linear-gradient(90deg, #f59e0b, #ef4444); /* Torch fire gradient! */
+                              border-radius: 10px;
+                              border: 3px solid #0f172a; /* Creates a nice padding effect around the fire */
+                        }
+                        .survivor-scrollbar::-webkit-scrollbar-thumb:hover {
+                              background: linear-gradient(90deg, #fde047, #f97316); /* Burns brighter when hovered */
+                        }
                   `}</style>
 
+                  {/* ELIMINATED & BLINDSIDE ALERTS (Unchanged) */}
                   {eliminatedPlayer && (
                         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(2, 6, 23, 0.95)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', animation: 'fadeIn 0.5s ease' }}>
                               <h2 style={{ color: '#64748b', letterSpacing: '8px', fontSize: '1rem', marginBottom: '10px' }}>THE TRIBE HAS SPOKEN</h2>
@@ -517,15 +578,15 @@ export default function App() {
                                     <button onClick={() => setShowTribeEditor(false)} className="squish-button" style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
 
                                     <h2 style={{ color: '#3b82f6', marginTop: 0, marginBottom: '5px', fontSize: '1.5rem', fontWeight: '900' }}>🏕️ TRIBE MANAGER</h2>
-                                    <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '15px' }}>1. Define the new tribes below. <br/>2. Tap the color next to a player to assign them.</p>
+                                    <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '15px' }}>1. Define the new tribes below. <br />2. Tap the color next to a player to assign them.</p>
 
                                     {/* 1. DEFINE TARGET TRIBES */}
                                     <div style={{ background: '#020617', padding: '15px', borderRadius: '16px', marginBottom: '20px', border: '1px solid #1e293b' }}>
                                           {targetTribes.map((tribe, index) => (
                                                 <div key={tribe.id} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                                      <input 
-                                                            type="text" 
-                                                            placeholder={`Tribe ${index + 1} Name`} 
+                                                      <input
+                                                            type="text"
+                                                            placeholder={`Tribe ${index + 1} Name`}
                                                             value={tribe.name}
                                                             onChange={(e) => {
                                                                   const newTribes = [...targetTribes];
@@ -534,8 +595,8 @@ export default function App() {
                                                             }}
                                                             style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: '#1e293b', color: 'white', fontWeight: 'bold' }}
                                                       />
-                                                      <input 
-                                                            type="color" 
+                                                      <input
+                                                            type="color"
                                                             value={tribe.color}
                                                             onChange={(e) => {
                                                                   const newTribes = [...targetTribes];
@@ -549,7 +610,7 @@ export default function App() {
                                                       )}
                                                 </div>
                                           ))}
-                                          
+
                                           {targetTribes.length < 3 && (
                                                 <button onClick={handleAddTargetTribe} className="squish-button" style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px dashed #64748b', color: '#94a3b8', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
                                                       + ADD ANOTHER TRIBE
@@ -565,7 +626,7 @@ export default function App() {
                                                             {c.name}
                                                             <span style={{ display: 'block', fontSize: '0.65rem', color: c.tribe_color || '#94a3b8', marginTop: '2px' }}>Current: {c.tribe_name || 'Merge'}</span>
                                                       </div>
-                                                      
+
                                                       <div style={{ display: 'flex', gap: '6px' }}>
                                                             {targetTribes.map(tribe => {
                                                                   const isSelected = playerAssignments[c.id] === tribe.id;
@@ -606,7 +667,7 @@ export default function App() {
                         <div style={{ position: 'fixed', inset: 0, backgroundColor: '#020617', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
                               <div style={{ fontSize: '5rem', marginBottom: '20px', animation: 'pulse 2s infinite' }}>🚧</div>
                               <h1 style={{ color: '#f97316', fontSize: '2.5rem', fontWeight: '900', marginBottom: '15px', textShadow: '0 0 20px rgba(249, 115, 22, 0.4)', lineHeight: '1.2' }}>
-                                    TRIBE SWAP <br/> IN PROGRESS
+                                    TRIBE SWAP <br /> IN PROGRESS
                               </h1>
                               <p style={{ color: '#94a3b8', fontSize: '1.2rem', maxWidth: '400px', lineHeight: '1.6' }}>
                                     Drop your buffs! The game is paused while we assign the new tribes. Check back after the commercial break!
@@ -641,17 +702,33 @@ export default function App() {
                   </div>
 
                   <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 15px' }}>
-                        
+
                         {/* CAMP NOTICE BOARD */}
                         <div style={{ background: '#0f172a', padding: '20px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '20px' }}>
                               <div style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', marginBottom: '15px', letterSpacing: '3px', fontWeight: 'bold' }}>
                                     CAMP NOTICE BOARD
                               </div>
-                              
-                              <div className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: '15px', paddingBottom: '10px', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
-                                    
+
+                              {/* --- UPDATED: Drag-to-Scroll Container --- */}
+                              <div
+                                    ref={scrollContainerRef}
+                                    className="survivor-scrollbar"
+                                    onMouseDown={handleMouseDown}
+                                    onMouseLeave={handleMouseLeaveOrUp}
+                                    onMouseUp={handleMouseLeaveOrUp}
+                                    onMouseMove={handleMouseMove}
+                                    style={{
+                                          display: 'flex',
+                                          overflowX: 'auto',
+                                          gap: '15px',
+                                          paddingBottom: '15px',
+                                          scrollSnapType: 'x mandatory',
+                                          WebkitOverflowScrolling: 'touch',
+                                          cursor: 'grab' // Indicates it's draggable
+                                    }}
+                              >
                                     {/* News */}
-                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #3b82f6' }}>
+                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(59, 130, 246, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #3b82f6', userSelect: 'none' }}>
                                           <span style={{ fontSize: '1.4rem' }}>📰</span>
                                           <div>
                                                 <div style={{ color: '#3b82f6', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>News</div>
@@ -662,7 +739,7 @@ export default function App() {
                                     </div>
 
                                     {/* Alert */}
-                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #ef4444' }}>
+                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239, 68, 68, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #ef4444', userSelect: 'none' }}>
                                           <span style={{ fontSize: '1.4rem' }}>⚠️</span>
                                           <div>
                                                 <div style={{ color: '#ef4444', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Alert</div>
@@ -673,7 +750,7 @@ export default function App() {
                                     </div>
 
                                     {/* Pro-Tip */}
-                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(34, 197, 94, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #22c55e' }}>
+                                    <div style={{ flex: '0 0 85%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(34, 197, 94, 0.1)', padding: '15px', borderRadius: '16px', borderLeft: '4px solid #22c55e', userSelect: 'none' }}>
                                           <span style={{ fontSize: '1.4rem' }}>💡</span>
                                           <div>
                                                 <div style={{ color: '#22c55e', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Pro-Tip</div>
@@ -688,7 +765,7 @@ export default function App() {
                         {/* CONDENSED SCROLLABLE LEADERBOARD */}
                         <div style={{ background: '#0f172a', padding: '15px', borderRadius: '24px', border: '1px solid #1e293b', marginBottom: '20px' }}>
                               <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', marginBottom: '10px', letterSpacing: '2px', fontWeight: 'bold' }}>TOP PLAYERS</div>
-                              
+
                               <div className="hide-scrollbar" style={{ maxHeight: '140px', overflowY: 'auto', paddingRight: '5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     {scores.length > 0 ? (
                                           scores.map((s, i) => {
@@ -714,7 +791,14 @@ export default function App() {
                                                                   </span>
                                                             </div>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                  <span style={{ color: '#22c55e', fontWeight: '900', fontSize: '1.1rem' }}>{s.points}</span>
+                                                                  {/* --- UPDATED: Dynamic Colors for Positive/Negative Score --- */}
+                                                                  <span style={{
+                                                                        color: s.points > 0 ? '#22c55e' : (s.points < 0 ? '#ef4444' : '#f8fafc'),
+                                                                        fontWeight: '900',
+                                                                        fontSize: '1.1rem'
+                                                                  }}>
+                                                                        {s.points}
+                                                                  </span>
                                                                   <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 'bold' }}>PTS</span>
                                                             </div>
                                                       </div>
@@ -729,7 +813,7 @@ export default function App() {
                         {/* ADMIN PANEL */}
                         {isAdmin && (
                               <div style={{ border: '2px solid #ef4444', padding: '15px', borderRadius: '20px', marginBottom: '30px', background: 'rgba(239, 68, 68, 0.1)' }}>
-                                    
+
                                     <button
                                           className="squish-button"
                                           onClick={toggleMaintenanceMode}
@@ -742,7 +826,7 @@ export default function App() {
                                           <button onClick={() => adjustTimer(60)} className="squish-button" style={{ flex: 1, padding: '10px', background: '#f97316', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>+1 MIN</button>
                                           <button onClick={() => adjustTimer(15)} className="squish-button" style={{ flex: 1, padding: '10px', background: '#eab308', color: 'black', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>+15 SEC</button>
                                     </div>
-                                    
+
                                     <button
                                           className="squish-button"
                                           onClick={async () => {
@@ -812,7 +896,7 @@ export default function App() {
                                                             <div style={{ position: 'absolute', top: '-8px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', zIndex: 10, padding: '0 5px' }}>
                                                                   {/* SNUFF TORCH */}
                                                                   <button onClick={() => handleEliminate(c.id)} style={{ background: '#ef4444', border: '2px solid #020617', borderRadius: '50%', width: '32px', height: '32px', color: 'white', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Snuff Torch">✕</button>
-                                                                  
+
                                                                   {/* MAKE IMMUNE */}
                                                                   <button
                                                                         onClick={async () => { await supabase.from('contestants').update({ is_immune: !c.is_immune }).eq('id', c.id); fetchData(); }}
@@ -849,12 +933,12 @@ export default function App() {
 
                                                             {/* IDOL GRAPHIC */}
                                                             {c.has_idol && (
-                                                                  <div style={{ 
-                                                                        position: 'absolute', top: '10px', right: '10px', width: '36px', height: '36px', 
-                                                                        background: 'linear-gradient(135deg, #f59e0b, #92400e)', border: '2px solid #fde047', 
-                                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.6), 0 0 15px rgba(245, 158, 11, 0.8)', 
-                                                                        zIndex: 20, fontSize: '1.1rem' 
+                                                                  <div style={{
+                                                                        position: 'absolute', top: '10px', right: '10px', width: '36px', height: '36px',
+                                                                        background: 'linear-gradient(135deg, #f59e0b, #92400e)', border: '2px solid #fde047',
+                                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.6), 0 0 15px rgba(245, 158, 11, 0.8)',
+                                                                        zIndex: 20, fontSize: '1.1rem'
                                                                   }} title="Holds a Hidden Immunity Idol">
                                                                         🗿
                                                                   </div>
@@ -936,12 +1020,12 @@ export default function App() {
 
                                                             {/* IDOL GRAPHIC */}
                                                             {c.has_idol && (
-                                                                  <div style={{ 
-                                                                        position: 'absolute', top: '10px', right: '10px', width: '36px', height: '36px', 
-                                                                        background: 'linear-gradient(135deg, #f59e0b, #92400e)', border: '2px solid #fde047', 
-                                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.6), 0 0 15px rgba(245, 158, 11, 0.8)', 
-                                                                        zIndex: 20, fontSize: '1.1rem' 
+                                                                  <div style={{
+                                                                        position: 'absolute', top: '10px', right: '10px', width: '36px', height: '36px',
+                                                                        background: 'linear-gradient(135deg, #f59e0b, #92400e)', border: '2px solid #fde047',
+                                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        boxShadow: '0 4px 10px rgba(0,0,0,0.6), 0 0 15px rgba(245, 158, 11, 0.8)',
+                                                                        zIndex: 20, fontSize: '1.1rem'
                                                                   }} title="Holds a Hidden Immunity Idol">
                                                                         🗿
                                                                   </div>
