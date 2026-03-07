@@ -510,16 +510,18 @@ export default function App() {
       const graveyard = contestants.filter(c => c.is_eliminated);
 
       return (
-            <div style={{
-                  backgroundColor: '#020617',
-                  color: 'white',
-                  height: '100dvh', /* CHANGED: Changed minHeight to fixed height to lock it to the screen */
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  overflowY: 'auto', /* CHANGED: Forces this specific div to handle vertical scrolling */
-                  overflowX: 'hidden', /* CHANGED: Keeps your horizontal clipping intact safely */
-                  paddingBottom: isImmersiveMode ? '0px' : '180px'
-            }}>
+            <div
+                  className="survivor-scrollbar" /* CHANGED: Added your custom scrollbar class here! */
+                  style={{
+                        backgroundColor: '#020617',
+                        color: 'white',
+                        height: '100dvh', /* CHANGED: Changed minHeight to fixed height to lock it to the screen */
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        overflowY: 'auto', /* CHANGED: Forces this specific div to handle vertical scrolling */
+                        overflowX: 'hidden', /* CHANGED: Keeps your horizontal clipping intact safely */
+                        paddingBottom: isImmersiveMode ? '0px' : '180px'
+                  }}>
 
                   <audio ref={fireworksAudioRef} src="/fireworks.mp3" preload="auto" playsInline style={{ display: 'none' }} />
                   <audio ref={eliminationAudioRef} src="/snuff.mp3" preload="auto" playsInline style={{ display: 'none' }} />
