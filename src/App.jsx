@@ -80,9 +80,10 @@ export default function App() {
             };
       }, []);
 
-      const triggerHaptic = () => {
+      const triggerHaptic = (pattern = 50) => {
             if (typeof navigator !== 'undefined' && navigator.vibrate) {
-                  navigator.vibrate(50);
+                  // Now accepts our custom alarm pattern, or defaults to 50ms for buttons
+                  navigator.vibrate(pattern);
             }
 
             try {
@@ -482,7 +483,7 @@ export default function App() {
                         }
 
                         if (currentPhase !== 0 && currentPhase !== lastHapticPhase && !isHardLocked) {
-                              triggerHaptic();
+                              triggerHaptic([500, 100, 500, 100, 500]);
                         }
 
                         lastHapticPhase = currentPhase;
