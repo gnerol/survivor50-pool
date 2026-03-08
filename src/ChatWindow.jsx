@@ -31,12 +31,33 @@ export default function ChatWindow() {
 
         fetchMessages();
 
+        // --- NEW: Ask the user for notification permissions ---
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+
         const chatSub = supabase.channel('chat-room')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
                 setMessages((prev) => [...prev, payload.new]);
+
+                const myUsername = localStorage.getItem('survivor_username');
+                const isFromMe = payload.new.username === myUsername;
+
                 // Increment unread count if the chat is closed
-                if (!isOpen) {
+                if (!isOpen && !isFromMe) {
                     setUnreadCount((prev) => prev + 1);
+                }
+
+                // --- NEW: Send the Device Notification ---
+                // Only send if it's from someone else, and permission is granted!
+                if (!isFromMe && Notification.permission === "granted") {
+                    // Only notify if the chat is closed, or they are in a different browser tab
+                    if (!isOpen || document.hidden) {
+                        new Notification(`Tribe Chatter: ${payload.new.username}`, {
+                            body: payload.new.text || "Sent a GIF 🎬",
+                            icon: '/favicon.ico' // You can point this to your app's logo image!
+                        });
+                    }
                 }
             })
             .on('broadcast', { event: 'floating-emoji' }, (payload) => {
@@ -45,7 +66,7 @@ export default function ChatWindow() {
             .subscribe();
 
         return () => supabase.removeChannel(chatSub);
-    }, [isOpen]); // Added isOpen to dependency array
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
