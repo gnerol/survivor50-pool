@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import confetti from 'canvas-confetti';
+import ChatWindow from './ChatWindow';
 
 export default function App() {
       const [contestants, setContestants] = useState([]);
@@ -569,6 +570,11 @@ export default function App() {
                         .survivor-scrollbar::-webkit-scrollbar-thumb:hover {
                               background: linear-gradient(90deg, #fde047, #f97316); 
                         }
+                         
+                        @keyframes floatUp {
+                              0% { transform: translateY(0) scale(1); opacity: 1; }
+                              100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+                        }
 
                         @keyframes purgeFlash {
                               0%, 2.15% { background-color: rgba(239, 68, 68, 0); } 
@@ -1126,6 +1132,9 @@ export default function App() {
                               </span>
                         </div>
                   )}
+                  {/* NEW: Insert the Chat Window here! */}
+                  <ChatWindow />
+
             </div>
       );
 }
