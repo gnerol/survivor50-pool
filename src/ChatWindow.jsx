@@ -17,7 +17,7 @@ export default function ChatWindow() {
     const [unreadCount, setUnreadCount] = useState(0);
 
     const messagesEndRef = useRef(null);
-    const GIPHY_API_KEY = 'YOUR_GIPHY_API_KEY_HERE'; // Keep your key here!
+    const GIPHY_API_KEY = 'tKTNLO1nDvV0BegMXRd6elag24mci9fC'; // Keep your key here!
 
     useEffect(() => {
         const fetchMessages = async () => {
