@@ -239,7 +239,7 @@ export default function ChatWindow() {
             )}
 
             <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '8px', zIndex: 1 }}>
-                <button onClick={() => setIsOpen(!isGifSearchOpen)} className="squish-button" style={{ background: 'rgba(59, 130, 246, 0.8)', color: 'white', border: 'none', borderRadius: '8px', padding: '0 10px', cursor: 'pointer', fontWeight: 'bold' }}>GIF</button>
+                <button onClick={() => setIsGifSearchOpen(!isGifSearchOpen)} className="squish-button" style={{ background: 'rgba(59, 130, 246, 0.8)', color: 'white', border: 'none', borderRadius: '8px', padding: '0 10px', cursor: 'pointer', fontWeight: 'bold' }}>GIF</button>
                 <input
                     type="text"
                     value={newMessage}
