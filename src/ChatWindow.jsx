@@ -118,9 +118,15 @@ export default function ChatWindow() {
         return () => clearTimeout(delayDebounceFn);
     }, [gifSearchTerm]);
 
-    // --- Floating Emoji Logic (Now with Usernames!) ---
+    // --- Floating Emoji Logic (Now actually saving Usernames!) ---
     const triggerFloatingEmoji = (emoji, username) => {
-        const newEmoji = { id: Date.now() + Math.random(), emoji, username, left: Math.random() * 80 + 10 };
+        // We MUST pass "username" into this newEmoji object!
+        const newEmoji = {
+            id: Date.now() + Math.random(),
+            emoji,
+            username,
+            left: Math.random() * 80 + 10
+        };
         setFloatingEmojis((prev) => [...prev, newEmoji]);
 
         setTimeout(() => {
@@ -141,10 +147,10 @@ export default function ChatWindow() {
 
         const finalName = myUsername.trim() || 'Anonymous';
 
-        // Trigger locally
+        // Trigger locally with the name
         triggerFloatingEmoji(emoji, finalName);
 
-        // Broadcast to everyone else
+        // Broadcast to everyone else with the name
         await supabase.channel('chat-room').send({
             type: 'broadcast',
             event: 'floating-emoji',
