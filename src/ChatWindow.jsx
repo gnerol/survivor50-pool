@@ -16,7 +16,7 @@ export default function ChatWindow() {
 
     const messagesEndRef = useRef(null);
     const channelRef = useRef(null);
-    const GIPHY_API_KEY = 'tKTNLO1nDvV0BegMXRd6elag24mci9fC';
+    const GIPHY_API_KEY = 'tKTNLO1nDvV0BegMXRd6elag24mci9fC'; // Note: Be careful hardcoding API keys in frontend code!
 
     useEffect(() => {
         const fetchMessages = async () => {
@@ -89,7 +89,7 @@ export default function ChatWindow() {
             id: Date.now() + Math.random(),
             emoji,
             username,
-            left: Math.random() * 80 + 10
+            left: Math.random() * 80 + 10 // Keeps it slightly away from the absolute edges
         };
         setFloatingEmojis((prev) => [...prev, newEmoji]);
         setTimeout(() => {
@@ -134,8 +134,21 @@ export default function ChatWindow() {
     };
 
     // Shared Floating Emoji Component to avoid repetition
-    const FloatingEmojiLayer = () => (
-        <div style={{ position: 'absolute', bottom: '60px', left: '-50px', width: '200px', height: '350px', pointerEvents: 'none', overflow: 'hidden', zIndex: 10 }}>
+    // Now accepts isChatOpen so we can style the container dynamically!
+    const FloatingEmojiLayer = ({ isChatOpen }) => (
+        <div style={{
+            position: 'absolute',
+            bottom: '60px',
+            // If open, stretch the full width. If closed, use the -50px offset
+            left: isChatOpen ? '0' : '-50px',
+            // If open, stretch 100%. If closed, use the 200px width
+            width: isChatOpen ? '100%' : '200px',
+            // Give it plenty of room to float up
+            height: isChatOpen ? 'calc(100% - 60px)' : '350px',
+            pointerEvents: 'none',
+            overflow: 'hidden',
+            zIndex: 10
+        }}>
             {floatingEmojis.map((e) => (
                 <div key={e.id} style={{
                     position: 'absolute', bottom: '0', left: `${e.left}%`,
@@ -156,7 +169,8 @@ export default function ChatWindow() {
     if (!isOpen) {
         return (
             <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9990 }}>
-                <FloatingEmojiLayer />
+                {/* Pass isChatOpen as false */}
+                <FloatingEmojiLayer isChatOpen={false} />
                 <button onClick={() => setIsOpen(true)} className="squish-button" style={{
                     background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
                     border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '50%', width: '60px', height: '60px',
@@ -181,7 +195,8 @@ export default function ChatWindow() {
             background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
             border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
         }}>
-            <FloatingEmojiLayer />
+            {/* Pass isChatOpen as true */}
+            <FloatingEmojiLayer isChatOpen={true} />
 
             {/* Header */}
             <div style={{ padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
