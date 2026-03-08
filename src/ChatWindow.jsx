@@ -133,20 +133,22 @@ export default function ChatWindow() {
         let myUsername = localStorage.getItem('survivor_username');
 
         // Prompt if they are anonymous
-        if (!myUsername) {
+        if (!myUsername || myUsername.trim() === '') {
             myUsername = window.prompt("Enter a nickname to send reactions:");
             if (!myUsername || !myUsername.trim()) return;
             localStorage.setItem('survivor_username', myUsername.trim());
         }
 
+        const finalName = myUsername.trim() || 'Anonymous';
+
         // Trigger locally
-        triggerFloatingEmoji(emoji, myUsername);
+        triggerFloatingEmoji(emoji, finalName);
 
         // Broadcast to everyone else
         await supabase.channel('chat-room').send({
             type: 'broadcast',
             event: 'floating-emoji',
-            payload: { emoji, username: myUsername }
+            payload: { emoji, username: finalName }
         });
     };
 
@@ -161,9 +163,11 @@ export default function ChatWindow() {
                             position: 'absolute', bottom: '0', left: `${e.left}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', animation: 'floatUp 2s ease-out forwards'
                         }}>
                             <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0px 4px 6px rgba(0,0,0,0.5))' }}>{e.emoji}</span>
-                            <span style={{ fontSize: '0.65rem', color: '#f8fafc', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '12px', marginTop: '2px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                                {e.username}
-                            </span>
+                            {e.username && (
+                                <span style={{ fontSize: '0.65rem', color: '#f8fafc', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '12px', marginTop: '2px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                    {e.username}
+                                </span>
+                            )}
                         </div>
                     ))}
                 </div>
