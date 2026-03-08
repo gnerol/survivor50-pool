@@ -12,7 +12,7 @@ export default function ChatWindow() {
     const [gifSearchTerm, setGifSearchTerm] = useState('');
     const [gifs, setGifs] = useState([]);
 
-    // --- NEW: Toggle State for Mobile ---
+    // --- Toggle State for Mobile ---
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -31,7 +31,7 @@ export default function ChatWindow() {
 
         fetchMessages();
 
-        // --- NEW: Ask the user for notification permissions ---
+        // --- Ask the user for notification permissions ---
         if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission();
         }
@@ -48,7 +48,7 @@ export default function ChatWindow() {
                     setUnreadCount((prev) => prev + 1);
                 }
 
-                // --- NEW: Send the Device Notification ---
+                // --- Send the Device Notification ---
                 // Only send if it's from someone else, and permission is granted!
                 if (!isFromMe && Notification.permission === "granted") {
                     // Only notify if the chat is closed, or they are in a different browser tab
@@ -61,7 +61,8 @@ export default function ChatWindow() {
                 }
             })
             .on('broadcast', { event: 'floating-emoji' }, (payload) => {
-                triggerFloatingEmoji(payload.payload.emoji);
+                // Pass BOTH the emoji and the username from the payload!
+                triggerFloatingEmoji(payload.payload.emoji, payload.payload.username);
             })
             .subscribe();
 
@@ -117,8 +118,9 @@ export default function ChatWindow() {
         return () => clearTimeout(delayDebounceFn);
     }, [gifSearchTerm]);
 
-    const triggerFloatingEmoji = (emoji) => {
-        const newEmoji = { id: Date.now() + Math.random(), emoji, left: Math.random() * 80 + 10 };
+    // --- Floating Emoji Logic (Now with Usernames!) ---
+    const triggerFloatingEmoji = (emoji, username) => {
+        const newEmoji = { id: Date.now() + Math.random(), emoji, username, left: Math.random() * 80 + 10 };
         setFloatingEmojis((prev) => [...prev, newEmoji]);
 
         setTimeout(() => {
@@ -127,23 +129,41 @@ export default function ChatWindow() {
     };
 
     const handleEmojiClick = async (emoji) => {
-        triggerFloatingEmoji(emoji);
+        // Check who is sending it
+        let myUsername = localStorage.getItem('survivor_username');
+
+        // Prompt if they are anonymous
+        if (!myUsername) {
+            myUsername = window.prompt("Enter a nickname to send reactions:");
+            if (!myUsername || !myUsername.trim()) return;
+            localStorage.setItem('survivor_username', myUsername.trim());
+        }
+
+        // Trigger locally
+        triggerFloatingEmoji(emoji, myUsername);
+
+        // Broadcast to everyone else
         await supabase.channel('chat-room').send({
             type: 'broadcast',
             event: 'floating-emoji',
-            payload: { emoji }
+            payload: { emoji, username: myUsername }
         });
     };
 
-    // --- NEW: Floating action button when closed ---
+    // --- Floating action button when closed ---
     if (!isOpen) {
         return (
             <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9990 }}>
                 {/* Render floating emojis even when chat is closed! */}
                 <div style={{ position: 'absolute', bottom: '60px', left: '-50px', width: '150px', height: '300px', pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
                     {floatingEmojis.map((e) => (
-                        <div key={e.id} style={{ position: 'absolute', bottom: '0', left: `${e.left}%`, fontSize: '2rem', animation: 'floatUp 2s ease-out forwards' }}>
-                            {e.emoji}
+                        <div key={e.id} style={{
+                            position: 'absolute', bottom: '0', left: `${e.left}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', animation: 'floatUp 2s ease-out forwards'
+                        }}>
+                            <span style={{ fontSize: '2.5rem', filter: 'drop-shadow(0px 4px 6px rgba(0,0,0,0.5))' }}>{e.emoji}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#f8fafc', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '12px', marginTop: '2px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                {e.username}
+                            </span>
                         </div>
                     ))}
                 </div>
@@ -191,86 +211,7 @@ export default function ChatWindow() {
             maxWidth: '350px', // Caps out on desktop
             height: '60vh', // Uses viewport height percentage instead of fixed pixels
             maxHeight: '500px',
-            background: 'rgba(15, 23, 42, 0.25)', // CHANGED: Much more transparent
-            backdropFilter: 'blur(6px)', // CHANGED: Lowered blur for better visibility
+            background: 'rgba(15, 23, 42, 0.25)', // Much more transparent
+            backdropFilter: 'blur(6px)', // Lowered blur for better visibility
             WebkitBackdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 9990,
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            overflow: 'hidden'
-        }}>
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
-                {floatingEmojis.map((e) => (
-                    <div key={e.id} style={{ position: 'absolute', bottom: '0', left: `${e.left}%`, fontSize: '2rem', animation: 'floatUp 2s ease-out forwards' }}>
-                        {e.emoji}
-                    </div>
-                ))}
-            </div>
-
-            {/* Header with Close Button */}
-            <div style={{ padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#f8fafc', fontWeight: 'bold' }}>Tribe Chatter 💬</h3>
-                <button onClick={() => setIsOpen(false)} className="squish-button" style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div className="survivor-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 1 }}>
-                {messages.map((msg, i) => (
-                    <div key={i} style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '10px', borderRadius: '12px' }}>
-                        <span style={{ color: '#f97316', fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>{msg.username}</span>
-                        {msg.text && <span style={{ color: '#e2e8f0', fontSize: '0.9rem' }}>{msg.text}</span>}
-                        {msg.gif_url && <img src={msg.gif_url} alt="gif" style={{ width: '100%', borderRadius: '8px', marginTop: '5px' }} />}
-                    </div>
-                ))}
-                <div ref={messagesEndRef} />
-            </div>
-
-            {/* CHANGED: Scrollable Emoji List */}
-            <div className="hide-scrollbar" style={{ display: 'flex', padding: '10px', gap: '10px', overflowX: 'auto', zIndex: 1, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                {EMOJI_LIST.map(emoji => (
-                    <button key={emoji} onClick={() => handleEmojiClick(emoji)} className="squish-button" style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', minWidth: '35px', height: '35px', cursor: 'pointer', fontSize: '1.2rem', flexShrink: 0 }}>
-                        {emoji}
-                    </button>
-                ))}
-            </div>
-
-            {isGifSearchOpen && (
-                <div style={{ position: 'absolute', bottom: '65px', left: '10px', right: '10px', background: 'rgba(30, 41, 59, 0.9)', backdropFilter: 'blur(10px)', padding: '10px', borderRadius: '16px', zIndex: 10 }}>
-                    <input
-                        autoFocus
-                        placeholder="Search GIFs..."
-                        value={gifSearchTerm}
-                        onChange={(e) => setGifSearchTerm(e.target.value)}
-                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', marginBottom: '10px', boxSizing: 'border-box' }}
-                    />
-                    <div className="survivor-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: '5px', paddingBottom: '5px' }}>
-                        {gifs.map(gif => (
-                            <img
-                                key={gif.id}
-                                src={gif.images.fixed_height_small.url}
-                                alt="gif"
-                                onClick={() => sendMessage(gif.images.fixed_height.url, true)}
-                                style={{ height: '60px', cursor: 'pointer', borderRadius: '4px' }}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '8px', zIndex: 1 }}>
-                <button onClick={() => setIsGifSearchOpen(!isGifSearchOpen)} className="squish-button" style={{ background: 'rgba(59, 130, 246, 0.8)', color: 'white', border: 'none', borderRadius: '8px', padding: '0 10px', cursor: 'pointer', fontWeight: 'bold' }}>GIF</button>
-                <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && sendMessage(newMessage)}
-                    placeholder="Type a message..."
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.4)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '10px', borderRadius: '8px', outline: 'none' }}
-                />
-                <button onClick={() => sendMessage(newMessage)} className="squish-button" style={{ background: 'rgba(249, 115, 22, 0.8)', color: 'white', border: 'none', borderRadius: '8px', padding: '0 15px', cursor: 'pointer', fontWeight: 'bold' }}>Send</button>
-            </div>
-        </div>
-    );
-}
+            border: '
