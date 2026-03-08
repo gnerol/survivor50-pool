@@ -11,13 +11,12 @@ export default function ChatWindow() {
     const [isGifSearchOpen, setIsGifSearchOpen] = useState(false);
     const [gifSearchTerm, setGifSearchTerm] = useState('');
     const [gifs, setGifs] = useState([]);
-
-    // --- Toggle State for Mobile ---
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
     const messagesEndRef = useRef(null);
-    const GIPHY_API_KEY = 'tKTNLO1nDvV0BegMXRd6elag24mci9fC'; // Keep your key here!
+    const channelRef = useRef(null); // Added this to track the broadcast channel
+    const GIPHY_API_KEY = 'tKTNLO1nDvV0BegMXRd6elag24mci9fC';
 
     useEffect(() => {
         const fetchMessages = async () => {
@@ -31,11 +30,11 @@ export default function ChatWindow() {
 
         fetchMessages();
 
-        // --- Ask the user for notification permissions ---
         if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission();
         }
 
+        // Initialize channel once and store it in channelRef
         const chatSub = supabase.channel('chat-room')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
                 setMessages((prev) => [...prev, payload.new]);
@@ -43,67 +42,40 @@ export default function ChatWindow() {
                 const myUsername = localStorage.getItem('survivor_username');
                 const isFromMe = payload.new.username === myUsername;
 
-                // Increment unread count if the chat is closed
                 if (!isOpen && !isFromMe) {
                     setUnreadCount((prev) => prev + 1);
                 }
 
-                // --- Send the Device Notification ---
-                // Only send if it's from someone else, and permission is granted!
                 if (!isFromMe && Notification.permission === "granted") {
-                    // Only notify if the chat is closed, or they are in a different browser tab
                     if (!isOpen || document.hidden) {
                         new Notification(`Tribe Chatter: ${payload.new.username}`, {
                             body: payload.new.text || "Sent a GIF 🎬",
-                            icon: '/favicon.ico' // You can point this to your app's logo image!
+                            icon: '/favicon.ico'
                         });
                     }
                 }
             })
             .on('broadcast', { event: 'floating-emoji' }, (payload) => {
-                // Pass BOTH the emoji and the username from the payload!
+                // Listen for emojis from other players
                 triggerFloatingEmoji(payload.payload.emoji, payload.payload.username);
             })
             .subscribe();
 
-        return () => supabase.removeChannel(chatSub);
+        channelRef.current = chatSub;
+
+        return () => {
+            supabase.removeChannel(chatSub);
+        };
     }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            setUnreadCount(0); // Clear unreads when opened
+            setUnreadCount(0);
         }
     }, [messages, isOpen]);
 
-    const sendMessage = async (text, isGif = false) => {
-        if (!text.trim() && !isGif) return;
-
-        // Check if we already know who this player is
-        let username = localStorage.getItem('survivor_username');
-
-        // If we don't know them, ask for a nickname!
-        if (!username) {
-            username = window.prompt("Enter a nickname to join the chat:");
-
-            // If they hit cancel or leave it blank, stop the message from sending
-            if (!username || !username.trim()) return;
-
-            // Save it so we remember them next time, and so the voting system can use it too!
-            localStorage.setItem('survivor_username', username.trim());
-        }
-
-        // Send the message to the database
-        await supabase.from('chat_messages').insert([{
-            username: username.trim(),
-            text: isGif ? '' : text,
-            gif_url: isGif ? text : null
-        }]);
-
-        setNewMessage('');
-        setIsGifSearchOpen(false);
-    };
-
+    // Handle GIF fetching
     useEffect(() => {
         if (!gifSearchTerm) return;
         const delayDebounceFn = setTimeout(async () => {
@@ -118,9 +90,28 @@ export default function ChatWindow() {
         return () => clearTimeout(delayDebounceFn);
     }, [gifSearchTerm]);
 
-    // --- Floating Emoji Logic (Now actually saving Usernames!) ---
+    const sendMessage = async (text, isGif = false) => {
+        if (!text.trim() && !isGif) return;
+
+        let username = localStorage.getItem('survivor_username');
+
+        if (!username) {
+            username = window.prompt("Enter a nickname to join the chat:");
+            if (!username || !username.trim()) return;
+            localStorage.setItem('survivor_username', username.trim());
+        }
+
+        await supabase.from('chat_messages').insert([{
+            username: username.trim(),
+            text: isGif ? '' : text,
+            gif_url: isGif ? text : null
+        }]);
+
+        setNewMessage('');
+        setIsGifSearchOpen(false);
+    };
+
     const triggerFloatingEmoji = (emoji, username) => {
-        // We MUST pass "username" into this newEmoji object!
         const newEmoji = {
             id: Date.now() + Math.random(),
             emoji,
@@ -135,28 +126,31 @@ export default function ChatWindow() {
     };
 
     const handleEmojiClick = async (emoji) => {
-        // Check who is sending it
         let myUsername = localStorage.getItem('survivor_username');
 
-        // Prompt if they are anonymous
         if (!myUsername || myUsername.trim() === '') {
             myUsername = window.prompt("Enter a nickname to send reactions:");
             if (!myUsername || !myUsername.trim()) return;
             localStorage.setItem('survivor_username', myUsername.trim());
         }
 
-        const finalName = myUsername.trim() || 'Anonymous';
+        const finalName = myUsername.trim();
 
-        // Trigger locally with the name
+        // 1. Send via the existing channel ref
+        if (channelRef.current) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'floating-emoji',
+                payload: { emoji, username: finalName }
+            });
+        }
+
+        // 2. Trigger locally for the user
         triggerFloatingEmoji(emoji, finalName);
-
-        // Broadcast to everyone else with the name
-        await supabase.channel('chat-room').send({
-            type: 'broadcast',
-            event: 'floating-emoji',
-            payload: { emoji, username: finalName }
-        });
     };
+
+    // --- RENDER LOGIC STARTS HERE ---
+    // (Ensure you keep your return ( ... ) block here exactly as it was)
 
     // --- Floating action button when closed ---
     if (!isOpen) {
